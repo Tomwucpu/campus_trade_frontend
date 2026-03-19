@@ -1,0 +1,22 @@
+{
+  "name": "校园二手交易平台",
+  "appid": "__UNI__USEDTRADE__",
+  "description": "uni-app + Vue3 二手交易平台",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "vueVersion": "3",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true
+  },
+  "h5": {
+    "title": "校园二手交易平台"
+  },
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  }
+}
