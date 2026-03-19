@@ -1,27 +1,38 @@
 <template>
   <view class="app-page" :class="themeClass">
-    <view class="top app-card">
-      <view>
-        <view class="top-title">我的订单</view>
-        <view class="top-sub">记录每一笔校园交易状态</view>
-      </view>
-      <button class="app-secondary-btn refresh-btn" size="mini" @click="fetchList">刷新</button>
+    <view class="app-page-header">
+       <view class="big-title">交易记录</view>
+       <button class="app-secondary-btn sm" @click="fetchList">刷新</button>
     </view>
 
-    <view v-if="!list.length" class="app-empty app-card">暂无订单记录</view>
+    <view v-if="!list.length" class="app-empty">暂无相关订单</view>
 
-    <view v-for="item in list" :key="item.id" class="order-item app-card">
-      <view class="row">
-        <view class="label">订单号</view>
-        <view class="value">{{ item.orderNo }}</view>
+    <view v-for="item in list" :key="item.id" class="order-card app-card">
+      <view class="card-head border-bottom">
+        <view class="shop-info">
+          <text class="shop-icon">🛒</text>
+          <text class="shop-name">商品订单</text>
+        </view>
+        <view class="order-status">{{ item.status }}</view>
       </view>
-      <view class="row">
-        <view class="label">状态</view>
-        <view class="status-tag">{{ item.status }}</view>
+      
+      <view class="card-body">
+        <view class="goods-thumb"></view>
+        <view class="goods-info">
+          <view class="g-title">订单编号: {{ item.orderNo }}</view>
+          <view class="g-desc">本订单的所有权归属当前登录用户，请确保在校园内进行安全交易。</view>
+        </view>
       </view>
-      <view class="row">
-        <view class="label">金额</view>
-        <view class="amount app-price">￥{{ item.totalAmount }}</view>
+
+      <view class="card-foot">
+        <view class="total-price">
+          <text class="label">实付款</text>
+          <text class="app-price">￥{{ item.totalAmount }}</text>
+        </view>
+        <view class="actions">
+          <button class="act-btn">联系卖家</button>
+          <button class="act-btn primary">确认收货</button>
+        </view>
       </view>
     </view>
   </view>
@@ -66,67 +77,125 @@ export default {
 </script>
 
 <style scoped>
-.top {
-  padding: 20rpx;
+.app-page-header {
+  padding: 20rpx 10rpx;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14rpx;
-  margin-bottom: 14rpx;
+  align-items: center;
+  margin-bottom: 20rpx;
 }
 
-.top-title {
+.big-title {
   font-size: 34rpx;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ink-text);
 }
 
-.top-sub {
-  margin-top: 8rpx;
-  color: var(--ink-subtext);
-  font-size: 23rpx;
+.sm {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  min-width: auto;
 }
 
-.refresh-btn {
-  min-width: 124rpx;
-  margin-top: 8rpx;
+.order-card {
+  margin-bottom: 20rpx;
+  padding: 0;
+  overflow: hidden;
 }
 
-.order-item {
-  padding: 18rpx 20rpx;
-  margin-bottom: 12rpx;
+.card-head {
+  padding: 20rpx 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.row {
-  min-height: 62rpx;
+.border-bottom {
+  border-bottom: 1rpx solid var(--ink-border);
+}
+
+.shop-info {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
+  font-weight: 700;
+  font-size: 26rpx;
+  color: var(--ink-text);
 }
 
-.label {
-  font-size: 24rpx;
-  color: var(--ink-subtext);
+.shop-icon {
+  margin-right: 10rpx;
+  font-size: 30rpx;
 }
 
-.value {
-  max-width: 70%;
-  text-align: right;
-  font-size: 24rpx;
+.order-status {
+  font-size: 26rpx;
+  color: var(--ink-accent);
+}
+
+.card-body {
+  padding: 24rpx;
+  display: flex;
+  gap: 20rpx;
+}
+
+.goods-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  background: var(--ink-surface-alt);
+  border-radius: 8rpx;
+}
+
+.goods-info {
+  flex: 1;
+}
+
+.g-title {
+  font-size: 28rpx;
   font-weight: 600;
   color: var(--ink-text);
+  margin-bottom: 8rpx;
 }
 
-.status-tag {
+.g-desc {
   font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 18rpx;
-  background: var(--ink-tag-bg);
-  color: var(--ink-text);
+  color: var(--ink-subtext);
+  line-height: 1.4;
 }
 
-.amount {
-  font-size: 30rpx;
+.card-foot {
+  padding: 20rpx 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--ink-bg); /* slightly different if needed, else inherit */
+}
+
+.total-price .label {
+  font-size: 24rpx;
+  color: var(--ink-subtext);
+  margin-right: 8rpx;
+}
+
+.actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.act-btn {
+  margin: 0;
+  background: transparent;
+  border: 1rpx solid var(--ink-border);
+  color: var(--ink-text);
+  font-size: 24rpx;
+  border-radius: 28rpx;
+  padding: 0 24rpx;
+  height: 52rpx;
+  line-height: 50rpx;
+}
+
+.act-btn.primary {
+  border-color: var(--ink-text);
+  color: var(--ink-text);
+  font-weight: 600;
 }
 </style>

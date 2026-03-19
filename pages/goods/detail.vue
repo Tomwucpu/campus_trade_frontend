@@ -1,37 +1,56 @@
 <template>
-  <view class="app-page" :class="themeClass">
-    <view class="head app-card">
-      <view class="head-title">{{ detail.title || '商品详情' }}</view>
-      <view class="head-price app-price">￥{{ detail.price || '-' }}</view>
-      <view class="head-meta">编号 #{{ id || '-' }} · 同校当面交易优先</view>
-    </view>
-
-    <view class="section app-card">
-      <view class="section-name">商品信息</view>
-      <view class="line">
-        <text class="line-label">商品ID</text>
-        <text class="line-value">{{ id || '-' }}</text>
-      </view>
-      <view class="line">
-        <text class="line-label">价格</text>
-        <text class="line-value">￥{{ detail.price || '-' }}</text>
+  <view class="app-page detail-page" :class="themeClass">
+    <!-- 顶部图片占位 -->
+    <view class="detail-hero">
+      <view class="img-box">
+        <text>商品实拍图</text>
       </view>
     </view>
 
-    <view class="section app-card">
-      <view class="section-name">商品描述</view>
-      <view class="desc">{{ detail.description || '卖家暂未填写描述内容。' }}</view>
+    <!-- 商品信息卡片 -->
+    <view class="detail-card app-card">
+      <view class="price-line">
+        <view class="curr-price app-price"><text class="sym">￥</text>{{ detail.price || '-' }}</view>
+        <view class="wants">10人想要 · 浏览502</view>
+      </view>
+      <view class="detail-title">{{ detail.title || '商品标题' }}</view>
+      
+      <view class="detail-desc">
+        {{ detail.description || '卖家暂未填写描述内容，建议聊天咨询。' }}
+      </view>
     </view>
 
-    <view class="section app-card">
-      <view class="section-name">交易提示</view>
-      <view class="tips">建议在校园公共区域当面交易，确认商品状态后再付款。</view>
+    <!-- 卖家信息 -->
+    <view class="seller-card app-card">
+      <view class="seller-left">
+        <view class="seller-avatar"></view>
+        <view class="seller-info">
+          <view class="s-name">某同学</view>
+          <view class="s-meta">发布于 软件学院宿舍</view>
+        </view>
+      </view>
+      <view class="seller-action">关注</view>
     </view>
 
-    <view class="action-row">
-      <button class="app-secondary-btn" @click="notReady('收藏')">收藏</button>
-      <button class="app-secondary-btn" @click="notReady('联系')">联系卖家</button>
-      <button class="app-primary-btn" @click="notReady('下单')">立即下单</button>
+    <view class="safety-tip">
+      ⚠️ 校园交易提醒：交易前请确认商品状态，建议当面交易，切勿直接转账。
+    </view>
+
+    <!-- 底部固定操作栏 -->
+    <view class="bottom-bar app-card">
+      <view class="icon-btns">
+        <view class="ibtn" @click="notReady('收藏')">
+          <text>☆</text>
+          <text class="ibin-txt">收藏</text>
+        </view>
+        <view class="ibtn" @click="notReady('留言')">
+          <text>💬</text>
+          <text class="ibin-txt">留言</text>
+        </view>
+      </view>
+      <view class="action-btns">
+        <button class="buy-btn" @click="notReady('我想要')">我想要</button>
+      </view>
     </view>
   </view>
 </template>
@@ -81,75 +100,161 @@ export default {
 </script>
 
 <style scoped>
-.head {
-  padding: 22rpx;
-  margin-bottom: 14rpx;
+.detail-page {
+  padding-bottom: 120rpx; /* 留出底部栏高度 */
 }
 
-.head-title {
-  font-size: 34rpx;
+.detail-hero {
+  margin-bottom: 20rpx;
+}
+
+.img-box {
+  width: 100%;
+  height: 500rpx;
+  background: var(--ink-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-subtext);
+}
+
+.detail-card {
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  border-radius: 24rpx;
+}
+
+.price-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 20rpx;
+}
+
+.curr-price {
+  font-size: 48rpx;
+  font-weight: 700;
+}
+.sym {
+  font-size: 30rpx;
+}
+
+.wants {
+  font-size: 22rpx;
+  color: var(--ink-subtext);
+  margin-bottom: 8rpx;
+}
+
+.detail-title {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--ink-text);
+  margin-bottom: 30rpx;
   line-height: 1.4;
+}
+
+.detail-desc {
+  font-size: 28rpx;
+  line-height: 1.8;
+  color: var(--ink-text);
+}
+
+.seller-card {
+  padding: 20rpx 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.seller-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.seller-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: var(--ink-border);
+}
+
+.s-name {
+  font-size: 30rpx;
   font-weight: 700;
   color: var(--ink-text);
 }
 
-.head-price {
-  margin-top: 10rpx;
-  font-size: 38rpx;
-}
-
-.head-meta {
-  margin-top: 8rpx;
+.s-meta {
   font-size: 22rpx;
   color: var(--ink-subtext);
 }
 
-.section {
-  padding: 20rpx;
-  margin-bottom: 14rpx;
-}
-
-.section-name {
-  font-size: 28rpx;
-  font-weight: 700;
+.seller-action {
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+  background: var(--ink-surface-alt);
+  border-radius: 20rpx;
+  font-weight: 600;
   color: var(--ink-text);
-  margin-bottom: 14rpx;
 }
 
-.line {
-  min-height: 62rpx;
+.safety-tip {
+  margin: 30rpx;
+  font-size: 22rpx;
+  color: var(--ink-accent);
+  opacity: 0.8;
+  text-align: center;
+}
+
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100rpx;
   display: flex;
   align-items: center;
+  padding: 0 20rpx;
   justify-content: space-between;
-  border-top: 1rpx solid var(--ink-border);
+  border-radius: 0;
+  border-top-left-radius: 24rpx;
+  border-top-right-radius: 24rpx;
+  box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
 }
 
-.line:first-of-type {
-  border-top: none;
+.icon-btns {
+  display: flex;
+  gap: 40rpx;
+  padding-left: 20rpx;
 }
 
-.line-label {
-  font-size: 24rpx;
+.ibtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 32rpx;
+}
+.ibin-txt {
+  font-size: 20rpx;
   color: var(--ink-subtext);
 }
 
-.line-value {
-  font-size: 25rpx;
-  color: var(--ink-text);
-  font-weight: 600;
+.action-btns {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
 }
 
-.desc,
-.tips {
-  font-size: 25rpx;
-  line-height: 1.7;
-  color: var(--ink-subtext);
-}
-
-.action-row {
-  margin-top: 6rpx;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr;
-  gap: 10rpx;
+.buy-btn {
+  margin: 0;
+  background: var(--ink-text);
+  color: var(--ink-bg);
+  font-size: 30rpx;
+  font-weight: 700;
+  border-radius: 40rpx;
+  padding: 0 60rpx;
+  height: 76rpx;
+  line-height: 76rpx;
 }
 </style>
