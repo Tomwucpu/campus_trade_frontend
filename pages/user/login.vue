@@ -1,13 +1,21 @@
 <template>
-  <view class="page">
-    <input v-model="form.username" placeholder="请输入用户名" class="input" />
-    <input v-model="form.password" password placeholder="请输入密码" class="input" />
-    <button type="primary" @click="handleLogin">登录</button>
+  <view class="app-page" :class="themeClass">
+    <view class="login-head app-card">
+      <view class="login-title">账号登录</view>
+      <view class="login-sub">登录后可进行发布、下单和订单管理</view>
+    </view>
+
+    <view class="login-card app-card">
+      <input v-model="form.username" placeholder="请输入用户名" class="app-input" />
+      <input v-model="form.password" password placeholder="请输入密码" class="app-input" />
+      <button class="app-primary-btn" @click="handleLogin">登录</button>
+    </view>
   </view>
 </template>
 
 <script>
 import { login } from '../../api/auth'
+import { getTheme, resolveThemeClass, applyNavigationTheme } from '../../utils/theme'
 
 export default {
   data() {
@@ -15,10 +23,19 @@ export default {
       form: {
         username: '',
         password: ''
-      }
+      },
+      themeClass: resolveThemeClass(getTheme())
     }
   },
+  onShow() {
+    this.syncTheme()
+  },
   methods: {
+    syncTheme() {
+      const theme = getTheme()
+      this.themeClass = resolveThemeClass(theme)
+      applyNavigationTheme(theme)
+    },
     handleLogin() {
       if (!this.form.username || !this.form.password) {
         uni.showToast({ title: '请输入账号密码', icon: 'none' })
@@ -41,13 +58,28 @@ export default {
 </script>
 
 <style scoped>
-.page {
-  padding: 24rpx;
-}
-.input {
-  background: #fff;
-  border-radius: 8rpx;
-  margin-bottom: 16rpx;
+.login-head {
   padding: 20rpx;
+  margin-bottom: 14rpx;
+}
+
+.login-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--ink-text);
+}
+
+.login-sub {
+  margin-top: 8rpx;
+  color: var(--ink-subtext);
+  font-size: 23rpx;
+}
+
+.login-card {
+  padding: 20rpx;
+}
+
+.app-input {
+  margin-bottom: 14rpx;
 }
 </style>

@@ -46,7 +46,7 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "校园二手交易平台",
-    "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f6f7fb"
+    "navigationBarBackgroundColor": "#f4f3ee",
+    "backgroundColor": "#f4f3ee"
   }
 }
