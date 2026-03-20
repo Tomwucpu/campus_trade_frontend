@@ -105,6 +105,7 @@ export default {
   data() {
     return {
       id: '',
+      fromPublish: false,
       theme: 'light',
       themeClass: 'theme-light',
       currentImageIndex: 0,
@@ -141,6 +142,7 @@ export default {
   onLoad(options) {
     syncThemePage(this)
     this.id = (options && options.id) || ''
+    this.fromPublish = String((options && options.fromPublish) || '') === '1'
     if (this.id) {
       this.goodsStore.setLastViewedId(this.id)
     }
@@ -227,6 +229,10 @@ export default {
         })
     },
     goBack() {
+      if (this.fromPublish) {
+        uni.reLaunch({ url: '/pages/index/index' })
+        return
+      }
       uni.navigateBack({
         fail: () => {
           uni.reLaunch({ url: '/pages/goods/list' })

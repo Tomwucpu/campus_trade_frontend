@@ -345,7 +345,8 @@ export default {
             this.form = createDefaultForm()
             uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
             setTimeout(() => {
-              uni.redirectTo({ url: `/pages/goods/detail?id=${targetId}` })
+              const query = this.isEdit ? `id=${targetId}` : `id=${targetId}&fromPublish=1`
+              uni.redirectTo({ url: `/pages/goods/detail?${query}` })
             }, 260)
             return
           }
