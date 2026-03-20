@@ -13,7 +13,7 @@
         <view class="market-row-head">
           <view>
             <view class="market-section-title">商品图片</view>
-            <view class="market-section-subtitle">最多上传 9 张，当前图片仅用于本地预览展示。</view>
+            <view class="market-section-subtitle">最多上传 9 张，提交时会保存到后端本地目录并同步到商品信息。</view>
           </view>
           <view class="image-count">{{ imageList.length }}/9</view>
         </view>
@@ -102,7 +102,7 @@
         </view>
       </view>
 
-      <button class="market-primary-btn submit-btn" @click="submit">{{ submitButtonText }}</button>
+      <button class="market-primary-btn submit-btn" :disabled="submitting" @click="submit">{{ submitButtonText }}</button>
       <view class="submit-tip">{{ submitTip }}</view>
     </view>
 
@@ -139,7 +139,7 @@
 </template>
 
 <script>
-import { createGoods, getGoodsCategories, getGoodsDetail, updateGoods } from '../../api/goods'
+import { createGoods, getGoodsCategories, getGoodsDetail, updateGoods, uploadGoodsImage } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
@@ -177,7 +177,8 @@ export default {
       categories: getDefaultCategoryList(),
       conditionOptions: getConditionOptions(),
       showCategoryPicker: false,
-      showConditionPicker: false
+      showConditionPicker: false,
+      submitting: false
     }
   },
   computed: {
@@ -199,12 +200,15 @@ export default {
       return this.isEdit ? '编辑商品' : '发布商品'
     },
     submitButtonText() {
-      return this.isEdit ? '保存修改' : '提交审核'
+      if (this.submitting) {
+        return this.isEdit ? '保存中...' : '发布中...'
+      }
+      return this.isEdit ? '保存修改' : '立即发布'
     },
     submitTip() {
       return this.isEdit
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
-        : '提交后商品会立即进入列表展示，后续可继续补充图片与说明。'
+        : '提交后商品会立即进入列表展示，图片会一起保存到本地上传目录。'
     }
   },
   onLoad(options) {
@@ -260,7 +264,7 @@ export default {
               price: detail.priceValue ? String(detail.priceValue) : '',
               originalPrice: detail.originalPriceValue ? String(detail.originalPriceValue) : '',
               description: detail.description || '',
-              images: Array.isArray(detail.gallery) && detail.gallery.length ? detail.gallery.slice(0, 9) : []
+              images: Array.isArray(res.data.images) && res.data.images.length ? res.data.images.slice(0, 9) : []
             }
             this.saveDraft()
             return
@@ -294,7 +298,35 @@ export default {
       this.showConditionPicker = false
       this.saveDraft()
     },
-    submit() {
+    isUploadedImage(value) {
+      return /^https?:\/\//.test(`${value || ''}`)
+    },
+    async uploadPendingImages() {
+      const result = []
+      for (let index = 0; index < this.imageList.length; index += 1) {
+        const imagePath = this.imageList[index]
+        if (this.isUploadedImage(imagePath)) {
+          result.push(imagePath)
+          continue
+        }
+
+        uni.showLoading({
+          title: `上传图片 ${index + 1}/${this.imageList.length}`,
+          mask: true
+        })
+        const res = await uploadGoodsImage(imagePath)
+        if (!res || res.code !== 0 || !res.data || !res.data.url) {
+          throw new Error((res && res.message) || '图片上传失败')
+        }
+        result.push(res.data.url)
+      }
+      return result
+    },
+    async submit() {
+      if (this.submitting) {
+        return
+      }
+
       if (!this.authStore.sync().isLoggedIn()) {
         uni.showToast({ title: '请先登录后再操作', icon: 'none' })
         setTimeout(() => {
@@ -319,42 +351,54 @@ export default {
         return
       }
 
-      const payload = {
-        title: this.form.title.trim(),
-        categoryId: Number(this.form.categoryId),
-        conditionLevel: Number(this.form.conditionLevel),
-        price,
-        originalPrice,
-        description: this.form.description.trim()
-      }
-      const action = this.isEdit ? () => updateGoods(this.id, payload) : () => createGoods(payload)
+      this.submitting = true
+      uni.showLoading({
+        title: this.isEdit ? '保存中' : '发布中',
+        mask: true
+      })
 
-      action()
-        .then((res) => {
-          if (res && res.code === 0 && res.data) {
-            const targetId = res.data.id || this.id
-            uni.removeStorageSync(this.draftKey)
-            pushLocalMessage({
-              type: 'audit',
-              title: this.isEdit ? '商品修改成功' : '商品发布成功',
-              content: this.isEdit
-                ? `你发布的“${payload.title}”已完成修改。`
-                : `你发布的“${payload.title}”已成功进入市集列表。`
-            })
-            this.goodsStore.setLastViewedId(targetId)
-            this.form = createDefaultForm()
-            uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
-            setTimeout(() => {
-              const query = this.isEdit ? `id=${targetId}` : `id=${targetId}&fromPublish=1`
-              uni.redirectTo({ url: `/pages/goods/detail?${query}` })
-            }, 260)
-            return
-          }
-          uni.showToast({ title: (res && res.message) || '提交失败', icon: 'none' })
-        })
-        .catch(() => {
-          uni.showToast({ title: '提交失败', icon: 'none' })
-        })
+      try {
+        const images = await this.uploadPendingImages()
+        const payload = {
+          title: this.form.title.trim(),
+          categoryId: Number(this.form.categoryId),
+          conditionLevel: Number(this.form.conditionLevel),
+          price,
+          originalPrice,
+          description: this.form.description.trim(),
+          images
+        }
+        const action = this.isEdit ? () => updateGoods(this.id, payload) : () => createGoods(payload)
+        const res = await action()
+
+        if (res && res.code === 0 && res.data) {
+          const targetId = res.data.id || this.id
+          uni.removeStorageSync(this.draftKey)
+          pushLocalMessage({
+            type: 'audit',
+            title: this.isEdit ? '商品修改成功' : '商品发布成功',
+            content: this.isEdit
+              ? `你发布的“${payload.title}”已完成修改。`
+              : `你发布的“${payload.title}”已成功进入市集列表。`
+          })
+          this.goodsStore.setLastViewedId(targetId)
+          this.form = createDefaultForm()
+          uni.hideLoading()
+          uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
+          setTimeout(() => {
+            const query = this.isEdit ? `id=${targetId}` : `id=${targetId}&fromPublish=1`
+            uni.redirectTo({ url: `/pages/goods/detail?${query}` })
+          }, 260)
+          return
+        }
+        throw new Error((res && res.message) || '提交失败')
+      } catch (error) {
+        uni.hideLoading()
+        uni.showToast({ title: error && error.message ? error.message : '提交失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+        this.submitting = false
+      }
     },
     goBack() {
       if (this.showCategoryPicker) {
@@ -530,6 +574,10 @@ export default {
 
 .submit-btn {
   width: 100%;
+}
+
+.submit-btn[disabled] {
+  opacity: 0.72;
 }
 
 .submit-tip {

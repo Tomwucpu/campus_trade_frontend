@@ -268,6 +268,9 @@ export function resolveGoodsImage(item = {}, index = 0) {
 }
 
 export function resolveGoodsGallery(item = {}, index = 0) {
+  if (Array.isArray(item.images) && item.images.length) {
+    return uniqueList(item.images).slice(0, 9)
+  }
   const seed = createSeed(item, index)
   const meta = resolveCategoryMeta(item, seed)
   const pool = resolveImagePool(meta)
@@ -328,7 +331,8 @@ export function normalizeOrderItem(item = {}, index = 0) {
       id: item.goodsId || item.id,
       title: item.goodsTitle,
       price: item.goodsPrice || item.totalAmount,
-      sellerName: item.sellerName
+      sellerName: item.sellerName,
+      imageUrl: item.imageUrl
     },
     index
   )

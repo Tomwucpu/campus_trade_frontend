@@ -1,4 +1,4 @@
-import { request } from '../utils/request'
+import { request, uploadFile } from '../utils/request'
 
 export function getGoodsList(params) {
   return request({
@@ -57,5 +57,13 @@ export function getGoodsCategories() {
   return request({
     url: '/goods/categories',
     method: 'GET'
+  })
+}
+
+export function uploadGoodsImage(filePath) {
+  return uploadFile({
+    url: '/files/images',
+    filePath,
+    name: 'file'
   })
 }
