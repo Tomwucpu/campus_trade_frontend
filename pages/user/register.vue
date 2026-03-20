@@ -1,56 +1,49 @@
 <template>
-  <view class="app-page register-page" :class="themeClass">
-    <view class="register-copy">
-      <view class="register-kicker">Ink Enrollment</view>
-      <view class="register-brand">开一枚新章</view>
-      <view class="register-text">
-        创建一个新的集市账号，注册成功后会返回登录页，并自动带上你刚填写的用户名。
-      </view>
+  <view class="market-page register-page theme-light">
+    <view class="login-hero safe-top">
+      <view class="hero-orb orb-right"></view>
+      <view class="hero-orb orb-left"></view>
+      <view class="login-brand-icon">新</view>
+      <view class="login-brand-title">创建校园账号</view>
+      <view class="login-brand-subtitle">注册后可发布闲置、收藏商品并跟踪整个交易流程。</view>
     </view>
 
-    <view class="register-card app-card">
-      <view class="register-card-title">账号注册</view>
+    <view class="market-shell login-shell">
+      <view class="market-card login-card">
+        <view class="auth-tabs">
+          <view class="auth-tab" @click="goLogin">登录</view>
+          <view class="auth-tab active">注册</view>
+        </view>
 
-      <view class="input-block">
-        <view class="input-label">用户名</view>
-        <input
-          v-model="form.username"
-          class="app-input"
-          placeholder="请输入用户名"
-        />
-      </view>
+        <view class="field-group">
+          <view class="field-label">用户名</view>
+          <input v-model="form.username" class="market-input" placeholder="请设置用户名" />
+        </view>
 
-      <view class="input-block">
-        <view class="input-label">密码</view>
-        <input
-          v-model="form.password"
-          class="app-input"
-          password
-          placeholder="请设置密码"
-        />
-      </view>
+        <view class="field-group">
+          <view class="field-label">密码</view>
+          <input v-model="form.password" class="market-input" password placeholder="请设置密码" />
+        </view>
 
-      <view class="input-block">
-        <view class="input-label">确认密码</view>
-        <input
-          v-model="form.confirmPassword"
-          class="app-input"
-          password
-          placeholder="请再次输入密码"
-        />
-      </view>
+        <view class="field-group">
+          <view class="field-label">确认密码</view>
+          <input v-model="form.confirmPassword" class="market-input" password placeholder="请再次输入密码" />
+        </view>
 
-      <view class="register-notes">
-        <view class="note-chip">同校交易</view>
-        <view class="note-chip">发布闲置</view>
-        <view class="note-chip">订单跟踪</view>
-      </view>
+        <view class="register-notes">
+          <view class="market-tag muted">同校交易</view>
+          <view class="market-tag muted">发布闲置</view>
+          <view class="market-tag muted">订单跟踪</view>
+        </view>
 
-      <button class="app-primary-btn register-btn" @click="handleRegister">完成注册</button>
+        <button class="market-primary-btn submit-btn" @click="handleRegister">注册账号</button>
 
-      <view class="register-footer">
-        <text class="footer-text">已经有账号了？</text>
-        <text class="footer-link" @click="goLogin">返回登录</text>
+        <view class="agreement-tip">注册即表示你同意平台使用规则与校园交易约定。</view>
+
+        <view class="bottom-tip">
+          <text class="tip-text">已有账号？</text>
+          <text class="tip-link" @click="goLogin">去登录</text>
+        </view>
       </view>
     </view>
   </view>
@@ -64,7 +57,7 @@ export default {
   data() {
     return {
       theme: 'light',
-      themeClass: '',
+      themeClass: 'theme-light',
       form: {
         username: '',
         password: '',
@@ -107,7 +100,7 @@ export default {
               uni.redirectTo({
                 url: `/pages/user/login?username=${encodeURIComponent(username)}`
               })
-            }, 350)
+            }, 260)
             return
           }
 
@@ -123,97 +116,149 @@ export default {
 
 <style scoped>
 .register-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48rpx;
+  background: #fffef9;
 }
 
-.register-copy {
-  margin-bottom: 40rpx;
+.login-hero {
+  position: relative;
+  padding: 0 32rpx 160rpx;
+  background: linear-gradient(135deg, #2d6a4f 0%, #1b5e20 100%);
+  text-align: center;
+  overflow: hidden;
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.orb-right {
+  width: 260rpx;
+  height: 260rpx;
+  top: 60rpx;
+  right: -50rpx;
+}
+
+.orb-left {
+  width: 320rpx;
+  height: 320rpx;
+  left: -80rpx;
+  bottom: -100rpx;
+}
+
+.login-brand-icon {
+  width: 112rpx;
+  height: 112rpx;
+  margin: 40rpx auto 24rpx;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 52rpx;
+  font-weight: 700;
   position: relative;
   z-index: 1;
 }
 
-.register-kicker {
-  font-size: 20rpx;
-  letter-spacing: 6rpx;
-  text-transform: uppercase;
-  color: var(--ink-subtext);
-  margin-bottom: 10rpx;
-}
-
-.register-brand {
-  font-family: var(--ink-font-title);
-  font-size: 62rpx;
-  color: var(--ink-text);
-  margin-bottom: 18rpx;
-}
-
-.register-text {
-  max-width: 560rpx;
-  font-size: 25rpx;
-  line-height: 1.9;
-  color: var(--ink-subtext);
-}
-
-.register-card {
-  padding: 36rpx 34rpx;
-}
-
-.register-card-title {
-  font-size: 34rpx;
+.login-brand-title {
+  font-size: 44rpx;
   font-weight: 700;
-  color: var(--ink-text);
+  color: #ffffff;
+  margin-bottom: 12rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand-subtitle {
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.82);
+  position: relative;
+  z-index: 1;
+}
+
+.login-shell {
+  margin-top: -96rpx;
+  position: relative;
+  z-index: 2;
+}
+
+.login-card {
+  padding: 28rpx;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8rpx;
+  padding: 8rpx;
+  background: #f8f9fa;
+  border-radius: 20rpx;
   margin-bottom: 28rpx;
 }
 
-.input-block {
-  margin-bottom: 24rpx;
+.auth-tab {
+  flex: 1;
+  min-height: 72rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 
-.input-label {
-  font-size: 23rpx;
-  color: var(--ink-subtext);
-  margin-bottom: 12rpx;
+.auth-tab.active {
+  background: #ffffff;
+  color: #2d6a4f;
+  box-shadow: 0 8rpx 18rpx rgba(45, 106, 79, 0.08);
+}
+
+.field-group {
+  margin-bottom: 22rpx;
+}
+
+.field-label {
+  font-size: 24rpx;
+  color: #2c3e50;
+  margin-bottom: 14rpx;
 }
 
 .register-notes {
   display: flex;
   flex-wrap: wrap;
-  gap: 10rpx;
-  margin: 6rpx 0 22rpx;
+  gap: 12rpx;
+  margin: 10rpx 0 24rpx;
 }
 
-.note-chip {
-  padding: 10rpx 16rpx;
-  border-radius: 999rpx;
-  background: var(--ink-tag-bg);
-  color: var(--ink-subtext);
-  font-size: 20rpx;
-}
-
-.register-btn {
+.submit-btn {
   width: 100%;
 }
 
-.register-footer {
+.agreement-tip {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #6c757d;
+}
+
+.bottom-tip {
   margin-top: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
+  text-align: center;
+  font-size: 24rpx;
 }
 
-.footer-text {
-  color: var(--ink-subtext);
-  font-size: 22rpx;
+.tip-text {
+  color: #6c757d;
 }
 
-.footer-link {
-  color: var(--ink-text);
-  font-size: 22rpx;
+.tip-link {
+  color: #2d6a4f;
   font-weight: 600;
+  margin-left: 8rpx;
 }
 </style>

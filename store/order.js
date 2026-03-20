@@ -2,7 +2,8 @@ const ORDER_STATE_KEY = 'order_page_state'
 
 const defaults = {
   status: 'all',
-  currentOrderId: null
+  currentOrderId: null,
+  currentOrder: null
 }
 
 function readState() {
@@ -16,7 +17,8 @@ const orderStore = {
   persist() {
     uni.setStorageSync(ORDER_STATE_KEY, {
       status: this.status,
-      currentOrderId: this.currentOrderId
+      currentOrderId: this.currentOrderId,
+      currentOrder: this.currentOrder
     })
   },
 
@@ -32,6 +34,15 @@ const orderStore = {
 
   setCurrentOrderId(value) {
     this.currentOrderId = value || null
+    if (this.currentOrder && String(this.currentOrder.id) !== String(this.currentOrderId)) {
+      this.currentOrder = null
+    }
+    this.persist()
+  },
+
+  setCurrentOrder(value) {
+    this.currentOrder = value && typeof value === 'object' ? value : null
+    this.currentOrderId = this.currentOrder ? this.currentOrder.id : this.currentOrderId
     this.persist()
   },
 

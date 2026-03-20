@@ -1,89 +1,97 @@
 <template>
-  <view class="app-page order-page" :class="themeClass">
-    <view class="order-header app-card">
-      <view class="order-head-top">
-        <view>
-          <view class="order-kicker">Order Chronicle</view>
-          <view class="order-title">交易记录</view>
-        </view>
-        <view class="refresh-chip" @click="fetchList">刷新</view>
-      </view>
+  <view class="market-page order-page" :class="themeClass">
+    <view class="market-shell safe-top">
+      <view class="page-title">我的订单</view>
 
-      <view class="status-row">
+      <scroll-view scroll-x class="tab-scroll" show-scrollbar="false">
+        <view class="tab-row">
+          <view
+            v-for="item in statusOptions"
+            :key="item.value"
+            class="tab-item"
+            :class="{ active: status === item.value }"
+            @click="setStatus(item.value)"
+          >
+            {{ item.label }}
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="market-shell order-shell">
+      <EmptyState
+        v-if="!displayList.length"
+        icon="📦"
+        title="暂无订单"
+        description="去首页看看有没有感兴趣的闲置，或者继续发布你的商品。"
+        button-text="去逛逛"
+        @action="goMarket"
+      />
+
+      <view v-else class="order-list">
         <view
-          v-for="item in statusOptions"
-          :key="item.value"
-          class="status-chip"
-          :class="{ active: status === item.value }"
-          @click="setStatus(item.value)"
+          v-for="item in displayList"
+          :key="item.id"
+          class="market-card order-card"
+          @click="openOrder(item)"
         >
-          {{ item.label }}
-        </view>
-      </view>
-    </view>
-
-    <view v-if="!displayList.length" class="app-empty app-card">
-      当前没有符合条件的订单记录，去首页看看有没有合适的闲置也不错。
-    </view>
-
-    <view v-else class="order-list">
-      <view
-        v-for="item in displayList"
-        :key="item.id"
-        class="order-card app-card"
-        :class="{ focus: String(item.id) === String(currentOrderId) }"
-      >
-        <view class="order-card-top">
-          <view>
-            <view class="order-no">{{ item.orderNo }}</view>
-            <view class="order-goods">{{ item.goodsTitle }}</view>
+          <view class="order-head">
+            <text class="order-time">{{ item.createdAtText }}</text>
+            <StatusTag :status="item.statusText" :type="item.statusType" />
           </view>
-          <view class="status-pill" :class="item.statusTone">{{ item.statusText }}</view>
-        </view>
 
-        <view class="order-summary">{{ item.summary }}</view>
-
-        <view class="order-card-bottom">
-          <view>
-            <view class="order-seller">
-              {{ item.roleType === 'SELLER' ? '买家' : '卖家' }}：{{ item.counterpartName }}
+          <view class="order-body">
+            <image class="order-image" :src="item.imageUrl" mode="aspectFill"></image>
+            <view class="order-main">
+              <view class="order-title">{{ item.goodsTitle }}</view>
+              <view class="order-meta">{{ item.roleType === 'SELLER' ? '买家' : '卖家' }}：{{ item.counterpartName }}</view>
+              <view class="order-price market-price">¥{{ item.totalAmountText }}</view>
             </view>
-            <view class="order-price app-price">¥{{ item.totalAmountText }}</view>
           </view>
+
           <view class="order-actions">
-            <view class="action-ghost" @click="handleSecondaryAction(item)">
+            <button class="market-secondary-btn action-btn" @click.stop="handleSecondaryAction(item)">
               {{ secondaryActionLabel(item) }}
-            </view>
-            <view class="action-solid" @click="handlePrimaryAction(item)">
+            </button>
+            <button class="market-primary-btn action-btn" @click.stop="handlePrimaryAction(item)">
               {{ primaryActionLabel(item) }}
-            </view>
+            </button>
           </view>
         </view>
       </view>
     </view>
+
+    <AppTabBar active="orders" />
   </view>
 </template>
 
 <script>
 import { cancelOrder, completeOrder, getOrderList, payOrder, shipOrder } from '../../api/order'
+import AppTabBar from '../../components/AppTabBar.vue'
+import EmptyState from '../../components/EmptyState.vue'
+import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
-import { normalizeOrderItem } from '../../utils/market'
+import { normalizeOrderItem, pushLocalMessage } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
+  components: {
+    AppTabBar,
+    EmptyState,
+    StatusTag
+  },
   data() {
     return {
       theme: 'light',
-      themeClass: '',
+      themeClass: 'theme-light',
       list: [],
       status: 'all',
-      currentOrderId: null,
       authStore: useAuthStore(),
       orderStore: useOrderStore(),
       statusOptions: [
         { value: 'all', label: '全部' },
-        { value: 'PENDING_PAYMENT', label: '待支付' },
+        { value: 'PENDING_PAYMENT', label: '待付款' },
         { value: 'PAID', label: '待发货' },
         { value: 'SHIPPED', label: '待收货' },
         { value: 'COMPLETED', label: '已完成' },
@@ -122,14 +130,13 @@ export default {
       uni.showToast({ title: '请先登录后查看订单', icon: 'none' })
       setTimeout(() => {
         uni.navigateTo({ url: '/pages/user/login' })
-      }, 300)
+      }, 260)
       return false
     },
     syncPageState() {
       syncThemePage(this)
       const store = this.orderStore.sync()
       this.status = store.status || 'all'
-      this.currentOrderId = store.currentOrderId
     },
     setStatus(value) {
       this.status = value
@@ -139,7 +146,7 @@ export default {
     fetchList() {
       getOrderList({
         pageNum: 1,
-        pageSize: 20,
+        pageSize: 30,
         status: this.status === 'all' ? undefined : this.status
       })
         .then((res) => {
@@ -147,15 +154,15 @@ export default {
             this.list = (res.data && res.data.records) || []
             return
           }
-          uni.showToast({ title: (res && res.message) || '订单加载失败', icon: 'none' })
+          this.list = []
         })
         .catch(() => {
-          uni.showToast({ title: '订单加载失败', icon: 'none' })
+          this.list = []
         })
     },
     primaryActionLabel(item) {
       if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
-        return '模拟支付'
+        return '立即支付'
       }
       if (item.roleType === 'SELLER' && item.status === 'PAID') {
         return '确认发货'
@@ -163,41 +170,47 @@ export default {
       if (item.roleType === 'BUYER' && item.status === 'SHIPPED') {
         return '确认收货'
       }
-      return '联系对方'
+      return '查看详情'
     },
     secondaryActionLabel(item) {
       if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
         return '取消订单'
       }
-      return '继续逛逛'
+      return '联系对方'
     },
     handlePrimaryAction(item) {
       if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
-        this.runAction(() => payOrder(item.id), item.id)
+        this.runAction(() => payOrder(item.id), item, '订单已支付')
         return
       }
       if (item.roleType === 'SELLER' && item.status === 'PAID') {
-        this.runAction(() => shipOrder(item.id), item.id)
+        this.runAction(() => shipOrder(item.id), item, '订单已发货')
         return
       }
       if (item.roleType === 'BUYER' && item.status === 'SHIPPED') {
-        this.runAction(() => completeOrder(item.id), item.id)
+        this.runAction(() => completeOrder(item.id), item, '交易已完成')
         return
       }
-      uni.showToast({ title: '请与对方确认交易细节', icon: 'none' })
+      this.openOrder(item)
     },
     handleSecondaryAction(item) {
       if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
-        this.runAction(() => cancelOrder(item.id), item.id)
+        this.runAction(() => cancelOrder(item.id), item, '订单已取消')
         return
       }
-      uni.navigateTo({ url: '/pages/goods/list' })
+      uni.showToast({ title: `请与${item.counterpartName}继续沟通`, icon: 'none' })
     },
-    runAction(action, orderId) {
+    runAction(action, item, title) {
       action()
         .then((res) => {
           if (res && res.code === 0) {
-            this.orderStore.setCurrentOrderId(orderId)
+            const nextOrder = normalizeOrderItem(res.data || item, 0)
+            this.orderStore.setCurrentOrder(nextOrder)
+            pushLocalMessage({
+              type: 'order',
+              title,
+              content: `订单 ${nextOrder.orderNo} 当前状态为“${nextOrder.statusText}”。`
+            })
             uni.showToast({ title: res.message || '操作成功', icon: 'success' })
             this.fetchList()
             return
@@ -207,6 +220,13 @@ export default {
         .catch(() => {
           uni.showToast({ title: '操作失败', icon: 'none' })
         })
+    },
+    openOrder(item) {
+      this.orderStore.setCurrentOrder(item)
+      uni.navigateTo({ url: `/pages/order/detail?id=${item.id}` })
+    },
+    goMarket() {
+      uni.reLaunch({ url: '/pages/index/index' })
     }
   }
 }
@@ -214,62 +234,48 @@ export default {
 
 <style scoped>
 .order-page {
-  padding-bottom: 40rpx;
+  padding-bottom: 180rpx;
 }
 
-.order-header {
-  padding: 28rpx;
-  margin-bottom: 20rpx;
+.page-title {
+  font-size: 42rpx;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 22rpx;
 }
 
-.order-head-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24rpx;
+.tab-scroll {
+  width: 100%;
+  white-space: nowrap;
+  padding-bottom: 12rpx;
 }
 
-.order-kicker {
-  font-size: 20rpx;
-  letter-spacing: 5rpx;
-  text-transform: uppercase;
-  color: var(--ink-subtext);
-  margin-bottom: 8rpx;
+.tab-row {
+  display: inline-flex;
+  gap: 14rpx;
+  padding-right: 24rpx;
 }
 
-.order-title {
-  font-family: var(--ink-font-title);
-  font-size: 52rpx;
-  color: var(--ink-text);
-}
-
-.refresh-chip {
-  padding: 16rpx 24rpx;
+.tab-item {
+  min-height: 60rpx;
+  padding: 0 24rpx;
   border-radius: 999rpx;
-  border: 1rpx solid var(--ink-border-strong);
-  font-size: 23rpx;
-  color: var(--ink-text);
-}
-
-.status-row {
+  background: #f8f9fa;
+  color: #6c757d;
   display: flex;
-  gap: 12rpx;
-  flex-wrap: wrap;
-}
-
-.status-chip {
-  padding: 12rpx 22rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid var(--ink-border);
-  background: var(--ink-tag-bg);
-  color: var(--ink-subtext);
+  align-items: center;
+  justify-content: center;
   font-size: 22rpx;
+  font-weight: 600;
 }
 
-.status-chip.active {
-  background: var(--ink-accent);
-  border-color: var(--ink-accent);
-  color: var(--ink-tag-active-text);
+.tab-item.active {
+  background: #2d6a4f;
+  color: #ffffff;
+}
+
+.order-shell {
+  padding-top: 24rpx;
 }
 
 .order-list {
@@ -279,111 +285,64 @@ export default {
 }
 
 .order-card {
-  padding: 26rpx;
+  padding: 22rpx;
 }
 
-.order-card.focus {
-  border-color: var(--ink-border-strong);
-  box-shadow: 0 24rpx 60rpx rgba(110, 88, 34, 0.12);
-}
-
-.theme-dark .order-card.focus {
-  box-shadow: 0 24rpx 60rpx rgba(0, 0, 0, 0.24);
-}
-
-.order-card-top {
+.order-head {
   display: flex;
   justify-content: space-between;
-  gap: 20rpx;
-  margin-bottom: 16rpx;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
 }
 
-.order-no {
+.order-time {
   font-size: 22rpx;
-  color: var(--ink-subtext);
-  margin-bottom: 10rpx;
+  color: #6c757d;
 }
 
-.order-goods {
-  font-size: 32rpx;
-  line-height: 1.45;
-  color: var(--ink-text);
-}
-
-.status-pill {
-  align-self: flex-start;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-}
-
-.status-pill.pending {
-  background: rgba(201, 154, 68, 0.14);
-  color: #a16a12;
-}
-
-.status-pill.active {
-  background: rgba(54, 102, 168, 0.14);
-  color: #365b96;
-}
-
-.status-pill.done {
-  background: rgba(51, 120, 86, 0.14);
-  color: #2f6d50;
-}
-
-.status-pill.muted {
-  background: var(--ink-tag-bg);
-  color: var(--ink-subtext);
-}
-
-.order-summary {
-  font-size: 23rpx;
-  line-height: 1.8;
-  color: var(--ink-subtext);
+.order-body {
+  display: flex;
+  gap: 18rpx;
   margin-bottom: 20rpx;
 }
 
-.order-card-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 20rpx;
+.order-image {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 20rpx;
+  background: #f8f9fa;
+  flex-shrink: 0;
 }
 
-.order-seller {
+.order-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-title {
+  font-size: 28rpx;
+  line-height: 1.5;
+  color: #2c3e50;
+  margin-bottom: 12rpx;
+}
+
+.order-meta {
   font-size: 22rpx;
-  color: var(--ink-subtext);
-  margin-bottom: 8rpx;
+  color: #6c757d;
+  margin-bottom: 18rpx;
 }
 
 .order-price {
-  font-size: 40rpx;
+  font-size: 34rpx;
 }
 
 .order-actions {
   display: flex;
-  gap: 12rpx;
+  gap: 14rpx;
 }
 
-.action-ghost,
-.action-solid {
-  min-width: 128rpx;
-  height: 64rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 23rpx;
-}
-
-.action-ghost {
-  border: 1rpx solid var(--ink-border);
-  color: var(--ink-text);
-}
-
-.action-solid {
-  background: var(--ink-accent);
-  color: var(--ink-tag-active-text);
+.action-btn {
+  flex: 1;
 }
 </style>

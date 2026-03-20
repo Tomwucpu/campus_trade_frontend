@@ -1,85 +1,109 @@
 <template>
-  <view class="app-page list-page" :class="themeClass">
-    <view class="list-hero app-card">
-      <view class="list-hero-top">
-        <view>
-          <view class="list-kicker">Ink Market Feed</view>
-          <view class="list-title">市集长卷</view>
+  <view class="market-page goods-list-page" :class="themeClass">
+    <view class="sticky-shell">
+      <view class="market-shell safe-top">
+        <view class="market-topbar list-topbar">
+          <view class="market-back-btn" @click="goBack">
+            <text class="market-back-symbol">‹</text>
+          </view>
+          <view class="search-wrap">
+            <text class="search-icon">⌕</text>
+            <input
+              v-model="keyword"
+              class="search-field"
+              placeholder="搜索你想要的二手物品"
+              confirm-type="search"
+              @confirm="fetchList"
+            />
+          </view>
+          <view class="filter-btn" :class="{ active: showFilter }" @click="showFilter = !showFilter">
+            筛
+          </view>
         </view>
-        <view class="hero-refresh" @click="fetchList">刷新</view>
+
+        <scroll-view scroll-x class="sort-scroll" show-scrollbar="false">
+          <view class="sort-row">
+            <view
+              v-for="item in sortOptions"
+              :key="item.value"
+              class="market-pill"
+              :class="{ active: sortMode === item.value }"
+              @click="selectSort(item.value)"
+            >
+              {{ item.label }}
+            </view>
+          </view>
+        </scroll-view>
       </view>
 
-      <view class="search-box">
-        <view class="search-mark">搜</view>
-        <input
-          v-model="keyword"
-          class="search-input"
-          placeholder="输入关键词，搜索教材、数码或生活闲置"
-          confirm-type="search"
-          @confirm="fetchList"
+      <view v-if="showFilter" class="market-shell filter-shell">
+        <view class="market-card filter-card">
+          <view class="filter-block">
+            <view class="filter-title">商品类目</view>
+            <view class="chip-wrap">
+              <view
+                v-for="item in categories"
+                :key="item.id"
+                class="market-pill small"
+                :class="{ active: String(categoryId) === String(item.id || item.value) }"
+                @click="categoryId = item.id || item.value"
+              >
+                {{ item.shortName || item.name }}
+              </view>
+            </view>
+          </view>
+
+          <view class="filter-block">
+            <view class="filter-title">商品成色</view>
+            <view class="chip-wrap">
+              <view
+                v-for="item in conditionChoices"
+                :key="item"
+                class="market-pill small"
+                :class="{ active: selectedConditions.includes(item) }"
+                @click="toggleCondition(item)"
+              >
+                {{ item }}
+              </view>
+            </view>
+          </view>
+
+          <view class="filter-block">
+            <view class="filter-title">价格区间</view>
+            <view class="price-row">
+              <input v-model="minPrice" class="market-input price-input" type="digit" placeholder="最低价" />
+              <text class="price-gap">-</text>
+              <input v-model="maxPrice" class="market-input price-input" type="digit" placeholder="最高价" />
+            </view>
+          </view>
+
+          <view class="filter-actions">
+            <button class="market-secondary-btn filter-action" @click="resetFilters">重置</button>
+            <button class="market-primary-btn filter-action" @click="applyFilters">确定</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="market-shell result-shell">
+      <view class="result-tip">共找到 {{ displayList.length }} 件商品，可继续按价格、热度和成色筛选。</view>
+
+      <EmptyState
+        v-if="!displayList.length"
+        icon="🔎"
+        title="没有找到符合条件的商品"
+        description="试试换个关键词，或者清空筛选条件后重新看看。"
+        button-text="清空筛选"
+        @action="resetFilters"
+      />
+
+      <view v-else class="goods-grid">
+        <ProductCard
+          v-for="item in displayList"
+          :key="item.id"
+          :goods="item"
+          @click="openDetail(item.id)"
         />
-        <view class="search-submit" @click="fetchList">搜索</view>
-      </view>
-    </view>
-
-    <view class="result-bar">
-      <view class="result-text">当前共 {{ total }} 件在售商品，支持按时间和价格切换排序。</view>
-      <view class="sort-actions">
-        <view
-          class="sort-action"
-          :class="{ active: sortMode === 'time-desc' || sortMode === 'time-asc' }"
-          @click="toggleTimeSort"
-        >
-          {{ timeSortLabel }}
-        </view>
-        <view
-          class="sort-action"
-          :class="{ active: sortMode === 'price-asc' || sortMode === 'price-desc' }"
-          @click="togglePriceSort"
-        >
-          {{ priceSortLabel }}
-        </view>
-        <view class="result-reset" @click="resetFilters">重置</view>
-      </view>
-    </view>
-
-    <view v-if="!displayList.length" class="app-empty app-card">
-      没有找到符合条件的商品，试试换一个关键词或稍后刷新。
-    </view>
-
-    <view v-else class="goods-grid">
-      <view
-        v-for="(item, index) in displayList"
-        :key="`${item.id}-${index}`"
-        class="goods-card app-card"
-        @click="goDetail(item.id)"
-      >
-        <view class="goods-cover" :class="item.coverStyle">
-          <view class="goods-cover-wash"></view>
-          <view class="goods-stamp">{{ item.stampText }}</view>
-          <view class="goods-cover-bottom">
-            <text class="goods-cover-title">{{ item.title }}</text>
-          </view>
-        </view>
-
-        <view class="goods-body">
-          <view class="goods-title">{{ item.title }}</view>
-          <view class="goods-tags">
-            <text class="goods-tag">{{ item.categoryLabel }}</text>
-            <text class="goods-tag">{{ item.conditionLabel }}</text>
-            <text class="goods-tag">{{ item.statusText }}</text>
-          </view>
-          <view class="goods-price-line">
-            <view class="goods-price app-price">¥{{ item.priceText }}</view>
-            <view class="goods-view">{{ item.glanceCount }} 浏览</view>
-          </view>
-          <view class="goods-user-line">
-            <view class="user-dot"></view>
-            <text class="goods-user">{{ item.sellerName }}</text>
-            <text class="goods-sep">·</text>
-            <text class="goods-user">{{ item.publishedAtText }}</text>
-          </view>
-        </view>
       </view>
     </view>
   </view>
@@ -87,45 +111,60 @@
 
 <script>
 import { getGoodsList } from '../../api/goods'
+import EmptyState from '../../components/EmptyState.vue'
+import ProductCard from '../../components/ProductCard.vue'
 import { useGoodsStore } from '../../store/goods'
-import { normalizeGoodsItem } from '../../utils/market'
+import {
+  filterGoodsList,
+  getConditionOptions,
+  getDefaultCategoryList,
+  getFallbackGoodsList,
+  normalizeGoodsItem
+} from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
+  components: {
+    EmptyState,
+    ProductCard
+  },
   data() {
     return {
       theme: 'light',
-      themeClass: '',
+      themeClass: 'theme-light',
+      goodsStore: useGoodsStore(),
       keyword: '',
-      sortMode: 'time-desc',
+      showFilter: false,
+      sortMode: 'latest',
+      categoryId: 'all',
+      minPrice: '',
+      maxPrice: '',
+      selectedConditions: [],
       list: [],
-      total: 0,
-      goodsStore: useGoodsStore()
+      categories: [{ id: 'all', name: '全部', shortName: '全部' }, ...getDefaultCategoryList()],
+      sortOptions: [
+        { value: 'latest', label: '最新发布' },
+        { value: 'price-low', label: '价格从低到高' },
+        { value: 'price-high', label: '价格从高到低' },
+        { value: 'hot', label: '热度优先' }
+      ]
     }
   },
   computed: {
-    timeSortLabel() {
-      return this.sortMode === 'time-asc' ? '时间正序' : '时间倒序'
-    },
-    priceSortLabel() {
-      return this.sortMode === 'price-desc' ? '价格从高到低' : '价格从低到高'
+    conditionChoices() {
+      return getConditionOptions().map((item) => item.label)
     },
     displayList() {
-      const cards = this.list.map((item, index) => normalizeGoodsItem(item, index))
-
-      if (this.sortMode === 'price-asc') {
-        return cards.slice().sort((a, b) => Number(a.priceText) - Number(b.priceText))
-      }
-
-      if (this.sortMode === 'price-desc') {
-        return cards.slice().sort((a, b) => Number(b.priceText) - Number(a.priceText))
-      }
-
-      if (this.sortMode === 'time-asc') {
-        return cards.slice().sort((a, b) => Number(a.sortTime || 0) - Number(b.sortTime || 0))
-      }
-
-      return cards.slice().sort((a, b) => Number(b.sortTime || 0) - Number(a.sortTime || 0))
+      const source = this.list.length ? this.list : getFallbackGoodsList()
+      const normalized = source.map((item, index) => normalizeGoodsItem(item, index))
+      return filterGoodsList(normalized, {
+        keyword: this.keyword,
+        categoryId: this.categoryId,
+        minPrice: this.minPrice,
+        maxPrice: this.maxPrice,
+        conditions: this.selectedConditions,
+        sortMode: this.sortMode
+      })
     }
   },
   onLoad() {
@@ -140,332 +179,236 @@ export default {
       syncThemePage(this)
       const store = this.goodsStore.sync()
       this.keyword = store.keyword
+      this.categoryId = store.categoryId || 'all'
+      this.minPrice = store.minPrice || ''
+      this.maxPrice = store.maxPrice || ''
       this.sortMode = this.resolveSortMode(store.quickFilter)
     },
-    resetFilters() {
-      this.goodsStore.resetFilters()
-      this.keyword = ''
-      this.sortMode = 'time-desc'
-      this.fetchList()
-    },
     resolveSortMode(value) {
-      if (value === 'price-asc' || value === 'cheap') {
-        return 'price-asc'
+      const map = {
+        latest: 'latest',
+        'price-asc': 'price-low',
+        'price-desc': 'price-high',
+        cheap: 'price-low',
+        hot: 'hot'
       }
-      if (value === 'price-desc') {
-        return 'price-desc'
+      return map[value] || 'latest'
+    },
+    persistQuery() {
+      const reverseSort = {
+        latest: 'latest',
+        'price-low': 'price-asc',
+        'price-high': 'price-desc',
+        hot: 'hot'
       }
-      if (value === 'time-asc') {
-        return 'time-asc'
-      }
-      return 'time-desc'
-    },
-    persistSortMode() {
-      const sortMap = {
-        'time-desc': 'latest',
-        'time-asc': 'time-asc',
-        'price-asc': 'price-asc',
-        'price-desc': 'price-desc'
-      }
-      this.goodsStore.setQuickFilter(sortMap[this.sortMode] || 'latest')
-    },
-    toggleTimeSort() {
-      this.sortMode = this.sortMode === 'time-desc' ? 'time-asc' : 'time-desc'
-      this.persistSortMode()
-    },
-    togglePriceSort() {
-      this.sortMode = this.sortMode === 'price-asc' ? 'price-desc' : 'price-asc'
-      this.persistSortMode()
-    },
-    fetchList() {
       this.goodsStore.applyListQuery({
         keyword: this.keyword,
-        quickFilter: this.sortMode
+        categoryId: this.categoryId,
+        minPrice: this.minPrice,
+        maxPrice: this.maxPrice,
+        quickFilter: reverseSort[this.sortMode] || 'latest'
       })
-
+    },
+    fetchList() {
+      this.persistQuery()
       getGoodsList({
         keyword: this.keyword || undefined,
         pageNum: 1,
-        pageSize: 20
+        pageSize: 40
       })
         .then((res) => {
           if (res && res.code === 0) {
             this.list = (res.data && res.data.records) || []
-            this.total = (res.data && res.data.total) || 0
             return
           }
-          uni.showToast({ title: (res && res.message) || '商品加载失败', icon: 'none' })
+          this.list = []
         })
         .catch(() => {
-          uni.showToast({ title: '商品加载失败', icon: 'none' })
+          this.list = []
         })
     },
-    goDetail(id) {
+    selectSort(value) {
+      this.sortMode = value
+      this.persistQuery()
+    },
+    toggleCondition(label) {
+      if (this.selectedConditions.includes(label)) {
+        this.selectedConditions = this.selectedConditions.filter((item) => item !== label)
+        return
+      }
+      this.selectedConditions = [...this.selectedConditions, label]
+    },
+    resetFilters() {
+      this.goodsStore.resetFilters()
+      this.keyword = ''
+      this.categoryId = 'all'
+      this.minPrice = ''
+      this.maxPrice = ''
+      this.selectedConditions = []
+      this.sortMode = 'latest'
+      this.showFilter = false
+      this.fetchList()
+    },
+    applyFilters() {
+      this.showFilter = false
+      this.persistQuery()
+    },
+    openDetail(id) {
       this.goodsStore.setLastViewedId(id)
       uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
+    },
+    goBack() {
+      uni.navigateBack({
+        fail: () => {
+          uni.reLaunch({ url: '/pages/index/index' })
+        }
+      })
     }
   }
 }
 </script>
 
 <style scoped>
-.list-page {
-  padding-bottom: 40rpx;
+.goods-list-page {
+  padding-bottom: 60rpx;
 }
 
-.list-hero {
-  padding: 28rpx;
-  margin-bottom: 24rpx;
-  overflow: hidden;
+.sticky-shell {
+  position: sticky;
+  top: 0;
+  z-index: 18;
+  background: linear-gradient(180deg, rgba(255, 254, 249, 0.96) 0%, rgba(255, 254, 249, 0.92) 100%);
+  backdrop-filter: blur(10rpx);
 }
 
-.list-hero-top {
+.list-topbar {
+  margin-bottom: 18rpx;
+}
+
+.search-wrap {
+  flex: 1;
+  height: 76rpx;
+  border-radius: 20rpx;
+  background: #f8f9fa;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 26rpx;
+  align-items: center;
+  gap: 12rpx;
+  padding: 0 22rpx;
 }
 
-.list-kicker {
-  font-size: 20rpx;
-  letter-spacing: 5rpx;
-  text-transform: uppercase;
-  color: var(--ink-subtext);
-  margin-bottom: 8rpx;
+.search-icon {
+  color: #adb5bd;
+  font-size: 28rpx;
 }
 
-.list-title {
-  font-family: var(--ink-font-title);
-  font-size: 52rpx;
-  color: var(--ink-text);
+.search-field {
+  flex: 1;
+  height: 76rpx;
+  font-size: 25rpx;
+  color: #2c3e50;
 }
 
-.hero-refresh {
-  padding: 16rpx 26rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid var(--ink-border-strong);
+.filter-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 22rpx;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2c3e50;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.filter-btn.active {
+  background: #2d6a4f;
+  color: #ffffff;
+}
+
+.sort-scroll {
+  width: 100%;
+  white-space: nowrap;
+  padding-bottom: 16rpx;
+}
+
+.sort-row {
+  display: inline-flex;
+  gap: 12rpx;
+  padding-right: 24rpx;
+}
+
+.filter-shell {
+  padding-bottom: 16rpx;
+}
+
+.filter-card {
+  padding: 24rpx;
+}
+
+.filter-block + .filter-block {
+  margin-top: 24rpx;
+}
+
+.filter-title {
   font-size: 24rpx;
-  color: var(--ink-text);
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 14rpx;
 }
 
-.search-box {
+.chip-wrap {
   display: flex;
-  align-items: center;
-  gap: 18rpx;
-  padding: 16rpx 18rpx;
-  border-radius: 999rpx;
-  background: var(--ink-surface-strong);
-  border: 1rpx solid var(--ink-border);
-  margin-bottom: 22rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
 
-.search-mark {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background: var(--ink-accent-soft);
+.market-pill.small {
+  min-height: 54rpx;
+  padding: 0 20rpx;
+  font-size: 22rpx;
+}
+
+.price-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: var(--ink-font-title);
+  gap: 14rpx;
+}
+
+.price-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.price-gap {
+  color: #adb5bd;
   font-size: 28rpx;
 }
 
-.search-input {
-  flex: 1;
-  height: 68rpx;
-  font-size: 28rpx;
-  color: var(--ink-text);
-}
-
-.search-submit {
-  min-width: 120rpx;
-  height: 66rpx;
-  border-radius: 999rpx;
-  background: var(--ink-accent);
-  color: var(--ink-tag-active-text);
+.filter-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26rpx;
-  font-weight: 600;
+  gap: 16rpx;
+  margin-top: 28rpx;
 }
 
-.result-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20rpx;
-  margin-bottom: 20rpx;
-  color: var(--ink-subtext);
-}
-
-.result-text {
+.filter-action {
   flex: 1;
-  font-size: 23rpx;
+}
+
+.result-shell {
+  padding-top: 24rpx;
+}
+
+.result-tip {
+  font-size: 22rpx;
   line-height: 1.7;
-}
-
-.sort-actions {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  flex-shrink: 0;
-}
-
-.sort-action,
-.result-reset {
-  min-width: 108rpx;
-  height: 58rpx;
-  padding: 0 18rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid var(--ink-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
-  color: var(--ink-text);
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.sort-action.active {
-  background: var(--ink-accent);
-  color: var(--ink-tag-active-text);
-  border-color: var(--ink-accent);
+  color: #6c757d;
+  margin-bottom: 20rpx;
 }
 
 .goods-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 18rpx;
-}
-
-.goods-card {
-  overflow: hidden;
-}
-
-.goods-cover {
-  height: 240rpx;
-  position: relative;
-  padding: 20rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.goods-cover-wash {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22) 0, transparent 24%),
-    radial-gradient(circle at 82% 36%, rgba(255, 255, 255, 0.18) 0, transparent 24%),
-    linear-gradient(140deg, rgba(255, 255, 255, 0.1) 0, transparent 32%);
-}
-
-.tone-0 {
-  background: linear-gradient(160deg, #28251f 0%, #4b4337 56%, #847764 100%);
-}
-
-.tone-1 {
-  background: linear-gradient(160deg, #3e372c 0%, #79614a 56%, #bb9a74 100%);
-}
-
-.tone-2 {
-  background: linear-gradient(160deg, #1c1c1c 0%, #4a4a4a 56%, #818181 100%);
-}
-
-.tone-3 {
-  background: linear-gradient(160deg, #2a2019 0%, #614636 56%, #a97b5e 100%);
-}
-
-.tone-4 {
-  background: linear-gradient(160deg, #303030 0%, #5b5245 56%, #999083 100%);
-}
-
-.goods-stamp,
-.goods-cover-bottom {
-  position: relative;
-  z-index: 1;
-}
-
-.goods-stamp {
-  align-self: flex-start;
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(250, 226, 120, 0.95);
-  color: #2e2618;
-  font-size: 20rpx;
-  font-weight: 700;
-}
-
-.goods-cover-bottom {
-  color: #ffffff;
-}
-
-.goods-cover-title {
-  font-size: 24rpx;
-  line-height: 1.5;
-}
-
-.goods-body {
-  padding: 20rpx;
-}
-
-.goods-title {
-  font-size: 28rpx;
-  line-height: 1.45;
-  min-height: 82rpx;
-  color: var(--ink-text);
-  margin-bottom: 14rpx;
-}
-
-.goods-tags {
-  display: flex;
-  gap: 8rpx;
-  flex-wrap: wrap;
-  margin-bottom: 14rpx;
-}
-
-.goods-tag {
-  padding: 8rpx 14rpx;
-  border-radius: 999rpx;
-  background: var(--ink-tag-bg);
-  color: var(--ink-subtext);
-  font-size: 20rpx;
-}
-
-.goods-price-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 14rpx;
-}
-
-.goods-price {
-  font-size: 38rpx;
-}
-
-.goods-view {
-  font-size: 20rpx;
-  color: var(--ink-subtext);
-}
-
-.goods-user-line {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  color: var(--ink-subtext);
-  font-size: 20rpx;
-}
-
-.user-dot {
-  width: 24rpx;
-  height: 24rpx;
-  border-radius: 50%;
-  background: var(--ink-border-strong);
-}
-
-.goods-sep {
-  opacity: 0.4;
 }
 </style>

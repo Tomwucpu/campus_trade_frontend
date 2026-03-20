@@ -1,56 +1,85 @@
 <template>
-  <view class="app-page detail-page" :class="themeClass">
-    <view class="detail-hero app-card" :class="detail.coverStyle">
-      <view class="detail-hero-wash"></view>
-      <view class="detail-stamp">{{ detail.stampText }}</view>
-      <view class="detail-hero-bottom">
-        <view class="detail-category">{{ detail.categoryLabel }}</view>
-        <view class="detail-hero-title">{{ detail.title }}</view>
-      </view>
-    </view>
+  <view class="market-page detail-page" :class="themeClass">
+    <view class="detail-cover">
+      <swiper class="cover-swiper" circular @change="onSwiperChange">
+        <swiper-item v-for="(image, index) in detail.gallery" :key="`${detail.id}-${index}`">
+          <image class="cover-image" :src="image" mode="aspectFill"></image>
+        </swiper-item>
+      </swiper>
 
-    <view class="detail-card app-card">
-      <view class="price-line">
-        <view class="detail-price app-price">¥{{ detail.priceText }}</view>
-        <view class="detail-views">{{ detail.statusText }} · {{ detail.glanceCount }} 浏览</view>
-      </view>
-      <view class="detail-title">{{ detail.title }}</view>
-      <view class="detail-tags">
-        <text v-for="badge in detail.badges" :key="badge" class="detail-tag">{{ badge }}</text>
-      </view>
-      <view class="detail-desc">{{ detail.description }}</view>
-    </view>
-
-    <view class="seller-card app-card">
-      <view class="seller-main">
-        <view class="seller-avatar">{{ detail.sellerName.slice(0, 1) }}</view>
-        <view class="seller-copy">
-          <view class="seller-name">{{ detail.sellerName }}</view>
-          <view class="seller-meta">发布时间：{{ detail.publishedAtText }}</view>
+      <view class="cover-top safe-top">
+        <view class="market-shell">
+          <view class="market-topbar">
+            <view class="market-back-btn transparent" @click="goBack">
+              <text class="market-back-symbol">‹</text>
+            </view>
+            <view class="market-icon-btn transparent">↗</view>
+          </view>
         </view>
       </view>
-      <view class="seller-chip">{{ detail.conditionLabel }}</view>
-    </view>
 
-    <view class="note-card app-card">
-      <view class="note-title">交易提醒</view>
-      <view class="note-text">
-        建议在校内公开区域当面验货，确认配件完整、价格一致后再完成交易；若订单已创建，请在订单页继续处理支付、发货与收货动作。
+      <view class="cover-dots">
+        <view
+          v-for="(image, index) in detail.gallery"
+          :key="`dot-${index}`"
+          class="cover-dot"
+          :class="{ active: currentImageIndex === index }"
+        ></view>
       </view>
     </view>
 
-    <view class="bottom-bar app-card">
-      <view class="bottom-actions">
-        <view class="mini-action" @click="chatSeller">
-          <text class="mini-action-icon">聊</text>
-          <text class="mini-action-label">联系卖家</text>
+    <view class="market-shell detail-shell">
+      <view class="market-card info-card">
+        <view class="price-row">
+          <view class="price-wrap">
+            <text class="detail-price market-price">¥{{ detail.priceText }}</text>
+            <text v-if="detail.originalPriceText" class="detail-origin">原价 ¥{{ detail.originalPriceText }}</text>
+            <text class="market-tag">{{ detail.conditionLabel }}</text>
+          </view>
+          <view class="detail-stats">{{ detail.viewCount }}次浏览 · {{ detail.favoriteCount }}人收藏</view>
         </view>
-        <view class="mini-action" @click="backToList">
-          <text class="mini-action-icon">市</text>
-          <text class="mini-action-label">返回列表</text>
+
+        <view class="detail-title">{{ detail.title }}</view>
+
+        <view class="detail-meta">
+          <view class="meta-item">发布时间 {{ detail.createdAtText }}</view>
+          <view class="meta-item">{{ detail.categoryLabel }}</view>
+          <view class="meta-item">{{ detail.campusLocation }}</view>
         </view>
       </view>
-      <button class="app-primary-btn want-btn" :disabled="actionDisabled" @click="createTradeOrder">
+
+      <view class="market-card seller-card">
+        <view class="seller-main">
+          <view class="seller-avatar">{{ detail.sellerName.slice(0, 1) }}</view>
+          <view class="seller-copy">
+            <view class="seller-name-row">
+              <text class="seller-name">{{ detail.sellerName }}</text>
+              <text class="seller-rating">★ {{ detail.sellerRating }}</text>
+            </view>
+            <view class="seller-subtitle">{{ detail.sellerStudentNo }} · {{ detail.campusLocation }}</view>
+          </view>
+        </view>
+        <view class="seller-action">查看主页</view>
+      </view>
+
+      <view class="market-card content-card">
+        <view class="market-section-title">商品描述</view>
+        <view class="content-text">{{ detail.description }}</view>
+      </view>
+    </view>
+
+    <view class="buy-bar market-card">
+      <view class="buy-tools">
+        <view class="tool-item" @click="toggleFavorite">
+          <text class="tool-icon">{{ favorite ? '♥' : '♡' }}</text>
+          <text class="tool-label">收藏</text>
+        </view>
+        <view class="tool-item" @click="chatSeller">
+          <text class="tool-icon">聊</text>
+          <text class="tool-label">咨询</text>
+        </view>
+      </view>
+      <button class="market-primary-btn buy-btn" :disabled="actionDisabled" @click="createTradeOrder">
         {{ actionText }}
       </button>
     </view>
@@ -63,7 +92,13 @@ import { createOrder } from '../../api/order'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import { useOrderStore } from '../../store/order'
-import { normalizeGoodsItem } from '../../utils/market'
+import {
+  getFallbackGoodsList,
+  isFavoriteGoods,
+  normalizeGoodsItem,
+  pushLocalMessage,
+  toggleFavoriteGoods
+} from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -71,14 +106,19 @@ export default {
     return {
       id: '',
       theme: 'light',
-      themeClass: '',
+      themeClass: 'theme-light',
+      currentImageIndex: 0,
+      favoriteState: false,
       authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
       orderStore: useOrderStore(),
-      detail: normalizeGoodsItem({}, 0)
+      detail: normalizeGoodsItem(getFallbackGoodsList()[0] || {}, 0)
     }
   },
   computed: {
+    favorite() {
+      return this.favoriteState
+    },
     isOwnGoods() {
       return String(this.authStore.sync().getUserId() || '') === String(this.detail.sellerId || '')
     },
@@ -90,15 +130,12 @@ export default {
         return '加载中'
       }
       if (this.isOwnGoods) {
-        return '自己发布'
+        return '这是我发布的'
       }
-      if (this.detail.status === 'OFFLINE') {
-        return '交易进行中'
+      if (this.detail.status !== 'ON_SALE') {
+        return '当前不可下单'
       }
-      if (this.detail.status === 'SOLD') {
-        return '已售出'
-      }
-      return '立即下单'
+      return '立即购买'
     }
   },
   onLoad(options) {
@@ -112,8 +149,12 @@ export default {
   onShow() {
     syncThemePage(this)
     this.authStore.sync()
+    this.favoriteState = isFavoriteGoods(this.detail.id)
   },
   methods: {
+    onSwiperChange(event) {
+      this.currentImageIndex = event.detail.current || 0
+    },
     fetchDetail() {
       if (!this.id) {
         uni.showToast({ title: '缺少商品编号', icon: 'none' })
@@ -124,6 +165,7 @@ export default {
         .then((res) => {
           if (res && res.code === 0) {
             this.detail = normalizeGoodsItem(res.data || {}, 0)
+            this.favoriteState = isFavoriteGoods(this.detail.id)
             return
           }
           uni.showToast({ title: (res && res.message) || '详情加载失败', icon: 'none' })
@@ -132,6 +174,11 @@ export default {
           uni.showToast({ title: '详情加载失败', icon: 'none' })
         })
     },
+    toggleFavorite() {
+      const next = toggleFavoriteGoods(this.detail.id)
+      this.favoriteState = next
+      uni.showToast({ title: next ? '已加入收藏' : '已取消收藏', icon: 'none' })
+    },
     ensureLogin() {
       if (this.authStore.sync().isLoggedIn()) {
         return true
@@ -139,21 +186,14 @@ export default {
       uni.showToast({ title: '请先登录后继续', icon: 'none' })
       setTimeout(() => {
         uni.navigateTo({ url: '/pages/user/login' })
-      }, 300)
+      }, 260)
       return false
     },
     chatSeller() {
       if (!this.ensureLogin()) {
         return
       }
-      uni.showToast({ title: '请在订单或聊天工具中联系卖家', icon: 'none' })
-    },
-    backToList() {
-      uni.navigateBack({
-        fail: () => {
-          uni.navigateTo({ url: '/pages/goods/list' })
-        }
-      })
+      uni.showToast({ title: `建议与${this.detail.sellerName}约在校内面交`, icon: 'none' })
     },
     createTradeOrder() {
       if (this.actionDisabled) {
@@ -167,18 +207,31 @@ export default {
       createOrder({ goodsId: Number(this.id) })
         .then((res) => {
           if (res && res.code === 0 && res.data) {
-            this.orderStore.setCurrentOrderId(res.data.id)
+            this.orderStore.setCurrentOrder(res.data)
+            pushLocalMessage({
+              type: 'order',
+              title: '订单创建成功',
+              content: `你已成功下单“${this.detail.title}”，请尽快完成付款。`
+            })
             uni.showToast({ title: res.message || '下单成功', icon: 'success' })
             setTimeout(() => {
               uni.navigateTo({ url: '/pages/order/list' })
-            }, 300)
+            }, 260)
             return
           }
+
           uni.showToast({ title: (res && res.message) || '下单失败', icon: 'none' })
         })
         .catch(() => {
           uni.showToast({ title: '下单失败', icon: 'none' })
         })
+    },
+    goBack() {
+      uni.navigateBack({
+        fail: () => {
+          uni.reLaunch({ url: '/pages/goods/list' })
+        }
+      })
     }
   }
 }
@@ -186,142 +239,116 @@ export default {
 
 <style scoped>
 .detail-page {
-  padding-bottom: calc(170rpx + env(safe-area-inset-bottom));
+  padding-bottom: 180rpx;
 }
 
-.detail-hero {
-  height: 520rpx;
+.detail-cover {
   position: relative;
-  overflow: hidden;
-  padding: 30rpx;
-  margin-bottom: 24rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  height: 720rpx;
+  background: #f8f9fa;
 }
 
-.detail-hero-wash {
+.cover-swiper,
+.cover-image {
+  width: 100%;
+  height: 100%;
+}
+
+.cover-top {
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 22% 24%, rgba(255, 255, 255, 0.24) 0, transparent 24%),
-    radial-gradient(circle at 82% 34%, rgba(255, 255, 255, 0.18) 0, transparent 24%),
-    radial-gradient(circle at 48% 86%, rgba(255, 255, 255, 0.12) 0, transparent 28%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0, transparent 30%);
+  left: 0;
+  right: 0;
+  top: 0;
 }
 
-.tone-0 {
-  background: linear-gradient(160deg, #28251f 0%, #4b4337 56%, #847764 100%);
-}
-
-.tone-1 {
-  background: linear-gradient(160deg, #3e372c 0%, #79614a 56%, #bb9a74 100%);
-}
-
-.tone-2 {
-  background: linear-gradient(160deg, #1c1c1c 0%, #4a4a4a 56%, #818181 100%);
-}
-
-.tone-3 {
-  background: linear-gradient(160deg, #2a2019 0%, #614636 56%, #a97b5e 100%);
-}
-
-.tone-4 {
-  background: linear-gradient(160deg, #303030 0%, #5b5245 56%, #999083 100%);
-}
-
-.detail-stamp,
-.detail-hero-bottom {
-  position: relative;
-  z-index: 1;
-}
-
-.detail-stamp {
-  width: 100rpx;
-  height: 58rpx;
-  border-radius: 999rpx;
-  background: rgba(250, 226, 120, 0.95);
-  color: #2e2618;
+.cover-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 32rpx;
   display: flex;
-  align-items: center;
   justify-content: center;
-  font-size: 24rpx;
-  font-weight: 700;
+  gap: 12rpx;
 }
 
-.detail-category {
-  align-self: flex-start;
-  padding: 10rpx 18rpx;
+.cover-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.cover-dot.active {
+  width: 38rpx;
   border-radius: 999rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.24);
-  color: #ffffff;
-  font-size: 22rpx;
-  margin-bottom: 18rpx;
+  background: #ffffff;
 }
 
-.detail-hero-title {
-  color: #ffffff;
-  font-family: var(--ink-font-title);
-  font-size: 48rpx;
-  line-height: 1.35;
-  max-width: 460rpx;
+.detail-shell {
+  margin-top: -34rpx;
+  position: relative;
+  z-index: 2;
 }
 
-.detail-card {
-  padding: 30rpx;
+.info-card,
+.seller-card,
+.content-card {
+  padding: 24rpx;
   margin-bottom: 20rpx;
 }
 
-.price-line {
+.price-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 20rpx;
+  align-items: flex-start;
+  gap: 16rpx;
   margin-bottom: 18rpx;
+}
+
+.price-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  flex-wrap: wrap;
 }
 
 .detail-price {
-  font-size: 54rpx;
+  font-size: 50rpx;
 }
 
-.detail-views {
+.detail-origin {
   font-size: 22rpx;
-  color: var(--ink-subtext);
-  padding-bottom: 8rpx;
+  color: #adb5bd;
+  text-decoration: line-through;
+}
+
+.detail-stats {
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #6c757d;
+  text-align: right;
 }
 
 .detail-title {
-  font-size: 40rpx;
+  font-size: 36rpx;
   line-height: 1.45;
-  color: var(--ink-text);
-  margin-bottom: 18rpx;
+  color: #2c3e50;
+  font-weight: 700;
+  margin-bottom: 16rpx;
 }
 
-.detail-tags {
+.detail-meta {
   display: flex;
-  gap: 10rpx;
   flex-wrap: wrap;
-  margin-bottom: 22rpx;
+  gap: 12rpx;
 }
 
-.detail-tag {
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  background: var(--ink-tag-bg);
-  color: var(--ink-subtext);
+.meta-item {
+  padding: 10rpx 16rpx;
+  border-radius: 14rpx;
+  background: #f8f9fa;
+  color: #6c757d;
   font-size: 22rpx;
-}
-
-.detail-desc {
-  font-size: 27rpx;
-  line-height: 1.9;
-  color: var(--ink-text);
-}
-
-.seller-card,
-.note-card {
-  padding: 26rpx 30rpx;
-  margin-bottom: 20rpx;
 }
 
 .seller-card {
@@ -334,98 +361,114 @@ export default {
 .seller-main {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 18rpx;
+  flex: 1;
 }
 
 .seller-avatar {
   width: 90rpx;
   height: 90rpx;
   border-radius: 50%;
-  background: var(--ink-accent);
-  color: var(--ink-tag-active-text);
+  background: #e8f5e9;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--ink-font-title);
+  color: #2d6a4f;
   font-size: 34rpx;
+  font-weight: 700;
 }
 
-.seller-name {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--ink-text);
+.seller-copy {
+  flex: 1;
+}
+
+.seller-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
   margin-bottom: 8rpx;
 }
 
-.seller-meta {
+.seller-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.seller-rating {
   font-size: 22rpx;
-  color: var(--ink-subtext);
+  color: #f77f00;
 }
 
-.seller-chip {
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: var(--ink-tag-bg);
-  color: var(--ink-text);
+.seller-subtitle {
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #6c757d;
+}
+
+.seller-action {
+  min-width: 140rpx;
+  min-height: 62rpx;
+  padding: 0 18rpx;
+  border-radius: 16rpx;
+  background: #e8f5e9;
+  color: #2d6a4f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 22rpx;
 }
 
-.note-title {
-  font-family: var(--ink-font-title);
-  font-size: 34rpx;
-  color: var(--ink-text);
-  margin-bottom: 14rpx;
+.content-text {
+  margin-top: 18rpx;
+  font-size: 25rpx;
+  line-height: 1.9;
+  color: #6c757d;
 }
 
-.note-text {
-  color: var(--ink-subtext);
-  font-size: 24rpx;
-  line-height: 1.85;
-}
-
-.bottom-bar {
+.buy-bar {
   position: fixed;
   left: 24rpx;
   right: 24rpx;
-  bottom: calc(18rpx + env(safe-area-inset-bottom));
+  bottom: calc(20rpx + env(safe-area-inset-bottom));
   padding: 18rpx;
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 18rpx;
+  z-index: 18;
 }
 
-.bottom-actions {
+.buy-tools {
   display: flex;
-  gap: 14rpx;
+  gap: 12rpx;
 }
 
-.mini-action {
-  width: 120rpx;
+.tool-item {
+  width: 110rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
-  color: var(--ink-subtext);
 }
 
-.mini-action-icon {
-  width: 58rpx;
-  height: 58rpx;
-  border-radius: 20rpx;
-  background: var(--ink-accent-soft);
+.tool-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 18rpx;
+  background: #f8f9fa;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--ink-font-title);
   font-size: 28rpx;
-  color: var(--ink-text);
+  color: #2d6a4f;
 }
 
-.mini-action-label {
+.tool-label {
   font-size: 20rpx;
+  color: #6c757d;
 }
 
-.want-btn {
+.buy-btn {
   flex: 1;
 }
 </style>

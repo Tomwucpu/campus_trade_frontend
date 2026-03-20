@@ -3,38 +3,36 @@ const THEME_KEY = 'app_theme'
 const THEME_META = {
   light: {
     navFrontColor: '#000000',
-    navBackgroundColor: '#f5f1e8',
-    label: '浅墨'
-  },
-  dark: {
-    navFrontColor: '#ffffff',
-    navBackgroundColor: '#111111',
-    label: '夜墨'
+    navBackgroundColor: '#FFFEF9',
+    label: '校园白'
   }
 }
 
 export function getTheme() {
   const theme = uni.getStorageSync(THEME_KEY)
-  return theme === 'dark' ? 'dark' : 'light'
+  if (theme !== 'light') {
+    uni.setStorageSync(THEME_KEY, 'light')
+  }
+  return 'light'
 }
 
 export function getThemeMeta(theme = getTheme()) {
   return THEME_META[theme] || THEME_META.light
 }
 
-export function setTheme(theme) {
-  const next = theme === 'dark' ? 'dark' : 'light'
+export function setTheme() {
+  const next = 'light'
   uni.setStorageSync(THEME_KEY, next)
   applyNavigationTheme(next)
   return next
 }
 
 export function toggleTheme() {
-  return setTheme(getTheme() === 'dark' ? 'light' : 'dark')
+  return setTheme()
 }
 
-export function resolveThemeClass(theme = getTheme()) {
-  return theme === 'dark' ? 'theme-dark' : 'theme-light'
+export function resolveThemeClass() {
+  return 'theme-light'
 }
 
 export function syncThemePage(target) {

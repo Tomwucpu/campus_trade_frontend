@@ -1,115 +1,139 @@
 <template>
-  <view class="app-page publish-page" :class="themeClass">
-    <view class="publish-top">
-      <view>
-        <view class="publish-kicker">Handwritten Draft</view>
-        <view class="publish-title">闲置落墨</view>
+  <view class="market-page publish-page" :class="themeClass">
+    <view class="market-shell safe-top">
+      <view class="market-topbar publish-topbar">
+        <view class="market-back-btn" @tap="goBack">
+          <text class="market-back-symbol">‹</text>
+        </view>
+        <view class="market-page-title">发布商品</view>
+        <view class="market-icon-btn placeholder-btn"></view>
       </view>
-      <view class="draft-tip">发布页</view>
+
+      <view class="market-card publish-card">
+        <view class="market-row-head">
+          <view>
+            <view class="market-section-title">商品图片</view>
+            <view class="market-section-subtitle">最多上传 9 张，当前图片仅用于本地预览展示。</view>
+          </view>
+          <view class="image-count">{{ imageList.length }}/9</view>
+        </view>
+
+        <view class="image-grid">
+          <view v-for="(item, index) in imageList" :key="`${item}-${index}`" class="image-item">
+            <image class="image-preview" :src="item" mode="aspectFill"></image>
+            <view class="image-remove" @click="removeImage(index)">×</view>
+          </view>
+          <view v-if="imageList.length < 9" class="image-uploader" @click="chooseImages">
+            <text class="upload-icon">+</text>
+            <text class="upload-text">上传图片</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="market-card publish-card">
+        <view class="field-group">
+          <view class="field-label">商品标题</view>
+          <input
+            v-model="form.title"
+            class="market-input"
+            maxlength="50"
+            placeholder="简洁描述你的商品"
+            @input="saveDraft"
+          />
+          <view class="field-count">{{ form.title.length }}/50</view>
+        </view>
+
+        <view class="field-group">
+          <view class="field-label">商品类目</view>
+          <view class="select-field" @click="showCategoryPicker = true">
+            <text :class="{ placeholder: !selectedCategoryName }">{{ selectedCategoryName || '请选择类目' }}</text>
+            <text class="select-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="field-inline">
+          <view class="field-group half">
+            <view class="field-label">出售价格</view>
+            <view class="price-shell">
+              <text class="price-symbol">¥</text>
+              <input
+                v-model="form.price"
+                class="price-value"
+                type="digit"
+                placeholder="0.00"
+                @input="saveDraft"
+              />
+            </view>
+          </view>
+
+          <view class="field-group half">
+            <view class="field-label">原价</view>
+            <view class="price-shell">
+              <text class="price-symbol">¥</text>
+              <input
+                v-model="form.originalPrice"
+                class="price-value"
+                type="digit"
+                placeholder="选填"
+                @input="saveDraft"
+              />
+            </view>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <view class="field-label">商品成色</view>
+          <view class="select-field" @click="showConditionPicker = true">
+            <text :class="{ placeholder: !selectedConditionLabel }">{{ selectedConditionLabel || '请选择成色' }}</text>
+            <text class="select-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="field-group">
+          <view class="field-label">商品描述</view>
+          <textarea
+            v-model="form.description"
+            class="market-textarea"
+            maxlength="500"
+            placeholder="详细描述商品的使用情况、配件和交易方式"
+            @input="saveDraft"
+          />
+          <view class="field-count">{{ form.description.length }}/500</view>
+        </view>
+      </view>
+
+      <button class="market-primary-btn submit-btn" @click="submit">提交审核</button>
+      <view class="submit-tip">提交后商品会立即进入列表展示，后续可继续补充图片与说明。</view>
     </view>
 
-    <view class="publish-card app-card">
-      <view class="field-head">
-        <view class="field-title">标题</view>
-        <view class="field-note">一句话说清楚你要卖什么</view>
-      </view>
-      <input
-        v-model="form.title"
-        class="app-input"
-        placeholder="例如：九成新机械键盘，宿舍静音轴"
-        @input="saveDraft"
-      />
-
-      <view class="field-head spaced">
-        <view class="field-title">分类</view>
-        <view class="field-note">选择商品所属分类，方便买家检索</view>
-      </view>
-      <view class="chip-group">
+    <view v-if="showCategoryPicker" class="picker-mask" @click="showCategoryPicker = false">
+      <view class="picker-sheet" @click.stop>
+        <view class="picker-title">选择类目</view>
         <view
           v-for="item in categories"
           :key="item.id"
-          class="app-chip outline"
-          :class="{ active: String(form.categoryId) === String(item.id) }"
-          @click="selectCategory(item.id)"
+          class="picker-item"
+          :class="{ active: Number(form.categoryId) === Number(item.id) }"
+          @click="selectCategory(item)"
         >
           {{ item.name }}
         </view>
       </view>
+    </view>
 
-      <view class="field-head spaced">
-        <view class="field-title">成色</view>
-        <view class="field-note">简单标记成色，方便沟通</view>
-      </view>
-      <view class="chip-group">
+    <view v-if="showConditionPicker" class="picker-mask" @click="showConditionPicker = false">
+      <view class="picker-sheet" @click.stop>
+        <view class="picker-title">选择成色</view>
         <view
           v-for="item in conditionOptions"
-          :key="item"
-          class="app-chip outline"
-          :class="{ active: Number(form.conditionLevel) === Number(item) }"
+          :key="item.value"
+          class="picker-item"
+          :class="{ active: Number(form.conditionLevel) === Number(item.value) }"
           @click="selectCondition(item)"
         >
-          {{ item }} 成新
+          {{ item.label }}
         </view>
       </view>
-
-      <view class="field-head spaced">
-        <view class="field-title">描述</view>
-        <view class="field-note">可以补充成色、购入时间、配件和面交地点</view>
-      </view>
-      <textarea
-        v-model="form.description"
-        class="app-textarea"
-        placeholder="把商品状况写得更具体一点，会更容易成交。"
-        @input="saveDraft"
-      />
-
-      <view class="poster-preview">
-        <view class="poster-stamp">预览</view>
-        <view class="poster-title">{{ form.title || '你的商品标题会出现在这里' }}</view>
-        <view class="poster-desc">{{ form.description || '描述内容会在这里生成预览，方便检查文案节奏。' }}</view>
-      </view>
-    </view>
-
-    <view class="publish-card app-card">
-      <view class="field-row">
-        <view class="row-label">售价</view>
-        <view class="price-shell">
-          <text class="price-symbol">¥</text>
-          <input
-            v-model="form.price"
-            type="digit"
-            class="price-input"
-            placeholder="0.00"
-            @input="saveDraft"
-          />
-        </view>
-      </view>
-      <view class="field-row">
-        <view class="row-label">原价</view>
-        <view class="price-shell">
-          <text class="price-symbol">¥</text>
-          <input
-            v-model="form.originalPrice"
-            type="digit"
-            class="price-input"
-            placeholder="选填"
-            @input="saveDraft"
-          />
-        </view>
-      </view>
-      <view class="field-row">
-        <view class="row-label">交易方式</view>
-        <view class="row-value">同校面交 / 宿舍楼下自提</view>
-      </view>
-      <view class="field-row borderless">
-        <view class="row-label">草稿状态</view>
-        <view class="row-value">本地自动保存</view>
-      </view>
-    </view>
-
-    <view class="bottom-tools">
-      <button class="app-secondary-btn bottom-btn" @click="restoreDraft">恢复草稿</button>
-      <button class="app-primary-btn bottom-btn" @click="submit">发布商品</button>
     </view>
   </view>
 </template>
@@ -118,7 +142,7 @@
 import { createGoods, getGoodsCategories } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
-import { getConditionOptions, getDefaultCategoryList } from '../../utils/market'
+import { getConditionOptions, getDefaultCategoryList, pushLocalMessage } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 const DRAFT_KEY = 'goods_publish_draft'
@@ -130,7 +154,8 @@ function createDefaultForm() {
     conditionLevel: 9,
     price: '',
     originalPrice: '',
-    description: ''
+    description: '',
+    images: []
   }
 }
 
@@ -138,12 +163,27 @@ export default {
   data() {
     return {
       theme: 'light',
-      themeClass: '',
+      themeClass: 'theme-light',
       authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
       form: createDefaultForm(),
       categories: getDefaultCategoryList(),
-      conditionOptions: getConditionOptions()
+      conditionOptions: getConditionOptions(),
+      showCategoryPicker: false,
+      showConditionPicker: false
+    }
+  },
+  computed: {
+    imageList() {
+      return Array.isArray(this.form.images) ? this.form.images : []
+    },
+    selectedCategoryName() {
+      const current = this.categories.find((item) => String(item.id) === String(this.form.categoryId))
+      return current ? current.name : ''
+    },
+    selectedConditionLabel() {
+      const current = this.conditionOptions.find((item) => Number(item.value) === Number(this.form.conditionLevel))
+      return current ? current.label : ''
     }
   },
   onLoad() {
@@ -174,12 +214,27 @@ export default {
         })
         .catch(() => {})
     },
-    selectCategory(id) {
-      this.form.categoryId = id
+    chooseImages() {
+      uni.chooseImage({
+        count: 9 - this.imageList.length,
+        success: (res) => {
+          this.form.images = [...this.imageList, ...(res.tempFilePaths || [])].slice(0, 9)
+          this.saveDraft()
+        }
+      })
+    },
+    removeImage(index) {
+      this.form.images = this.imageList.filter((item, currentIndex) => currentIndex !== index)
       this.saveDraft()
     },
-    selectCondition(level) {
-      this.form.conditionLevel = level
+    selectCategory(item) {
+      this.form.categoryId = item.id
+      this.showCategoryPicker = false
+      this.saveDraft()
+    },
+    selectCondition(item) {
+      this.form.conditionLevel = item.value
+      this.showConditionPicker = false
       this.saveDraft()
     },
     submit() {
@@ -187,7 +242,7 @@ export default {
         uni.showToast({ title: '请先登录后再发布', icon: 'none' })
         setTimeout(() => {
           uni.navigateTo({ url: '/pages/user/login' })
-        }, 300)
+        }, 260)
         return
       }
 
@@ -207,12 +262,17 @@ export default {
         .then((res) => {
           if (res && res.code === 0 && res.data) {
             uni.removeStorageSync(DRAFT_KEY)
-            this.form = createDefaultForm()
+            pushLocalMessage({
+              type: 'audit',
+              title: '商品发布成功',
+              content: `你发布的“${this.form.title}”已成功进入市集列表。`
+            })
             this.goodsStore.setLastViewedId(res.data.id)
+            this.form = createDefaultForm()
             uni.showToast({ title: res.message || '发布成功', icon: 'success' })
             setTimeout(() => {
               uni.redirectTo({ url: `/pages/goods/detail?id=${res.data.id}` })
-            }, 300)
+            }, 260)
             return
           }
           uni.showToast({ title: (res && res.message) || '发布失败', icon: 'none' })
@@ -220,6 +280,27 @@ export default {
         .catch(() => {
           uni.showToast({ title: '发布失败', icon: 'none' })
         })
+    },
+    goBack() {
+      if (this.showCategoryPicker) {
+        this.showCategoryPicker = false
+        return
+      }
+
+      if (this.showConditionPicker) {
+        this.showConditionPicker = false
+        return
+      }
+
+      const pages = getCurrentPages()
+      if (Array.isArray(pages) && pages.length > 1) {
+        uni.navigateBack({
+          delta: 1
+        })
+        return
+      }
+
+      uni.reLaunch({ url: '/pages/index/index' })
     }
   }
 }
@@ -227,170 +308,204 @@ export default {
 
 <style scoped>
 .publish-page {
-  padding-bottom: 40rpx;
+  padding-bottom: 60rpx;
 }
 
-.publish-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+.publish-topbar {
   margin-bottom: 24rpx;
 }
 
-.publish-kicker {
-  font-size: 20rpx;
-  letter-spacing: 5rpx;
-  text-transform: uppercase;
-  color: var(--ink-subtext);
-  margin-bottom: 8rpx;
-}
-
-.publish-title {
-  font-family: var(--ink-font-title);
-  font-size: 54rpx;
-  color: var(--ink-text);
-}
-
-.draft-tip {
-  padding: 14rpx 22rpx;
-  border-radius: 999rpx;
-  background: var(--ink-tag-bg);
-  color: var(--ink-text);
-  font-size: 23rpx;
+.placeholder-btn {
+  opacity: 0;
 }
 
 .publish-card {
-  padding: 28rpx;
+  padding: 24rpx;
   margin-bottom: 20rpx;
 }
 
-.field-head {
-  margin-bottom: 16rpx;
-}
-
-.field-head.spaced {
-  margin-top: 26rpx;
-}
-
-.field-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--ink-text);
-  margin-bottom: 8rpx;
-}
-
-.field-note {
+.image-count {
   font-size: 22rpx;
-  color: var(--ink-subtext);
+  color: #6c757d;
 }
 
-.chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
 }
 
-.poster-preview {
-  margin-top: 26rpx;
-  min-height: 280rpx;
-  border-radius: 24rpx;
-  padding: 26rpx;
+.image-item,
+.image-uploader {
   position: relative;
+  height: 200rpx;
+  border-radius: 22rpx;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 18% 22%, rgba(0, 0, 0, 0.06) 0, transparent 22%),
-    radial-gradient(circle at 78% 34%, rgba(0, 0, 0, 0.05) 0, transparent 24%),
-    linear-gradient(155deg, var(--ink-surface-strong) 0%, var(--ink-surface-alt) 100%);
 }
 
-.theme-dark .poster-preview {
-  background:
-    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.08) 0, transparent 22%),
-    radial-gradient(circle at 78% 34%, rgba(255, 255, 255, 0.05) 0, transparent 24%),
-    linear-gradient(155deg, var(--ink-surface-strong) 0%, var(--ink-surface-alt) 100%);
+.image-preview {
+  width: 100%;
+  height: 100%;
 }
 
-.poster-stamp {
-  width: 100rpx;
-  height: 54rpx;
-  border-radius: 999rpx;
-  background: rgba(250, 226, 120, 0.95);
-  color: #2e2618;
+.image-remove {
+  position: absolute;
+  right: 12rpx;
+  top: 12rpx;
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
-  font-weight: 700;
-  margin-bottom: 22rpx;
-}
-
-.poster-title {
-  font-family: var(--ink-font-title);
-  font-size: 40rpx;
-  line-height: 1.4;
-  color: var(--ink-text);
-  margin-bottom: 18rpx;
-}
-
-.poster-desc {
-  font-size: 24rpx;
-  line-height: 1.9;
-  color: var(--ink-subtext);
-}
-
-.field-row {
-  min-height: 110rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  border-bottom: 1rpx solid var(--ink-border);
-}
-
-.field-row.borderless {
-  border-bottom: none;
-}
-
-.row-label {
-  width: 160rpx;
   font-size: 28rpx;
-  color: var(--ink-text);
 }
 
-.row-value {
-  flex: 1;
-  text-align: right;
-  font-size: 24rpx;
-  line-height: 1.7;
-  color: var(--ink-subtext);
-}
-
-.price-shell {
-  flex: 1;
+.image-uploader {
+  border: 2rpx dashed #d7dee5;
+  background: #f8f9fa;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 12rpx;
 }
 
-.price-symbol {
-  font-size: 34rpx;
-  color: var(--ink-price);
-  margin-right: 12rpx;
+.upload-icon {
+  font-size: 44rpx;
+  color: #2d6a4f;
 }
 
-.price-input {
-  min-width: 220rpx;
-  text-align: right;
-  font-size: 36rpx;
-  color: var(--ink-text);
+.upload-text {
+  font-size: 22rpx;
+  color: #6c757d;
 }
 
-.bottom-tools {
+.field-group + .field-group {
+  margin-top: 24rpx;
+}
+
+.field-inline {
   display: flex;
   gap: 16rpx;
 }
 
-.bottom-btn {
+.field-group.half {
   flex: 1;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 24rpx;
+  color: #2c3e50;
+  margin-bottom: 14rpx;
+  font-weight: 700;
+}
+
+.field-count {
+  margin-top: 10rpx;
+  text-align: right;
+  font-size: 21rpx;
+  color: #adb5bd;
+}
+
+.select-field {
+  min-height: 90rpx;
+  padding: 0 24rpx;
+  border-radius: 20rpx;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #2c3e50;
+}
+
+.select-field .placeholder {
+  color: #adb5bd;
+}
+
+.select-arrow {
+  font-size: 30rpx;
+  color: #adb5bd;
+}
+
+.price-shell {
+  min-height: 90rpx;
+  padding: 0 24rpx;
+  border-radius: 20rpx;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+}
+
+.price-symbol {
+  font-size: 28rpx;
+  color: #2c3e50;
+  margin-right: 10rpx;
+}
+
+.price-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  color: #2c3e50;
+}
+
+.submit-btn {
+  width: 100%;
+}
+
+.submit-tip {
+  margin-top: 18rpx;
+  text-align: center;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #6c757d;
+}
+
+.picker-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.36);
+  display: flex;
+  align-items: flex-end;
+  z-index: 40;
+}
+
+.picker-sheet {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 28rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.picker-title {
+  text-align: center;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 22rpx;
+}
+
+.picker-item {
+  min-height: 82rpx;
+  padding: 0 24rpx;
+  border-radius: 20rpx;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  color: #2c3e50;
+  font-size: 25rpx;
+}
+
+.picker-item + .picker-item {
+  margin-top: 12rpx;
+}
+
+.picker-item.active {
+  background: #e8f5e9;
+  color: #2d6a4f;
 }
 </style>
