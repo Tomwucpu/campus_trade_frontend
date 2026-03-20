@@ -35,7 +35,7 @@
     <view class="note-card app-card">
       <view class="note-title">交易提醒</view>
       <view class="note-text">
-        建议在校园公开区域当面验货，确认配件完整、价格一致后再完成交易；如需进一步沟通，可先通过“联系卖家”进入演示流程。
+        建议在校园公开区域当面验货，确认配件完整、价格一致后再完成交易；如需进一步沟通，可直接联系卖家。
       </view>
     </view>
 
@@ -120,7 +120,7 @@ export default {
       if (!this.ensureLogin()) {
         return
       }
-      uni.showToast({ title: '当前为演示流程，可先查看订单页', icon: 'none' })
+      uni.showToast({ title: '请与卖家沟通面交细节', icon: 'none' })
     },
     backToList() {
       uni.navigateTo({ url: '/pages/goods/list' })

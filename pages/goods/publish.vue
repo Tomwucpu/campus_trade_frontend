@@ -5,7 +5,7 @@
         <view class="publish-kicker">Handwritten Draft</view>
         <view class="publish-title">闲置落墨</view>
       </view>
-      <view class="draft-tip">自动草稿</view>
+      <view class="draft-tip">草稿</view>
     </view>
 
     <view class="publish-card app-card">
@@ -32,7 +32,7 @@
       />
 
       <view class="poster-preview">
-        <view class="poster-stamp">示意图</view>
+        <view class="poster-stamp">预览</view>
         <view class="poster-title">{{ form.title || '你的商品标题会出现在这里' }}</view>
         <view class="poster-desc">{{ form.description || '描述内容会在这里生成预览，方便你检查文案节奏。' }}</view>
       </view>
@@ -57,8 +57,8 @@
         <view class="row-value">同校面交 / 宿舍楼下自提</view>
       </view>
       <view class="field-row borderless">
-        <view class="row-label">当前状态</view>
-        <view class="row-value">接口未开放，提交时保存为本地草稿</view>
+        <view class="row-label">保存方式</view>
+        <view class="row-value">本地草稿</view>
       </view>
     </view>
 
@@ -122,7 +122,7 @@ export default {
       }
 
       this.saveDraft()
-      uni.showToast({ title: '已保存草稿，待后端发布接口接入', icon: 'none' })
+      uni.showToast({ title: '已保存草稿', icon: 'none' })
     }
   }
 }

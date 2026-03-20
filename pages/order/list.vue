@@ -125,7 +125,7 @@ export default {
       uni.navigateTo({ url: '/pages/goods/list' })
     },
     contactSeller() {
-      uni.showToast({ title: '当前为演示流程，可线下面交沟通', icon: 'none' })
+      uni.showToast({ title: '请与卖家确认面交时间', icon: 'none' })
     }
   }
 }

@@ -5,22 +5,7 @@
         <view class="brand-kicker">Campus Flea Ink</view>
         <view class="brand-title">水墨集市</view>
       </view>
-      <view class="theme-switch app-card">
-        <view
-          class="theme-option"
-          :class="{ active: theme === 'light' }"
-          @click="changeTheme('light')"
-        >
-          白描
-        </view>
-        <view
-          class="theme-option"
-          :class="{ active: theme === 'dark' }"
-          @click="changeTheme('dark')"
-        >
-          玄墨
-        </view>
-      </view>
+      <view class="home-topnote">同校闲置流转</view>
     </view>
 
     <view class="search-shell app-card">
@@ -88,7 +73,7 @@
 
     <view class="feed-grid">
       <view
-        v-for="(item, index) in displayCards"
+        v-for="(item) in displayCards"
         :key="item.cardKey"
         class="feed-card app-card"
         @click="openDetail(item.id)"
@@ -147,7 +132,7 @@
 import { getGoodsList } from '../../api/goods'
 import { useGoodsStore } from '../../store/goods'
 import { getCategoryOptions, normalizeGoodsItem } from '../../utils/market'
-import { setTheme, syncThemePage } from '../../utils/theme'
+import { syncThemePage } from '../../utils/theme'
 
 const fallbackShowcase = [
   { id: 201, title: '九成新机械键盘，宿舍静音轴', price: 168, categoryLabel: '数码' },
@@ -222,10 +207,6 @@ export default {
       const store = this.goodsStore.sync()
       this.searchKeyword = store.keyword
       this.activeFeedTab = store.feedTab || 'recommend'
-    },
-    changeTheme(nextTheme) {
-      this.theme = setTheme(nextTheme)
-      this.themeClass = this.theme === 'dark' ? 'theme-dark' : 'theme-light'
     },
     selectFeedTab(tab) {
       this.activeFeedTab = tab
@@ -307,26 +288,15 @@ function indexGuard(text) {
   letter-spacing: 4rpx;
 }
 
-.theme-switch {
-  display: flex;
-  padding: 8rpx;
+.home-topnote {
+  padding: 16rpx 24rpx;
   border-radius: 999rpx;
-  gap: 6rpx;
-  z-index: 1;
-}
-
-.theme-option {
-  min-width: 104rpx;
-  text-align: center;
-  font-size: 23rpx;
+  border: 1rpx solid var(--ink-border);
+  background: rgba(255, 255, 255, 0.18);
   color: var(--ink-subtext);
-  padding: 14rpx 0;
-  border-radius: 999rpx;
-}
-
-.theme-option.active {
-  background: var(--ink-accent);
-  color: var(--ink-tag-active-text);
+  font-size: 22rpx;
+  line-height: 1;
+  margin-top: 10rpx;
 }
 
 .search-shell {

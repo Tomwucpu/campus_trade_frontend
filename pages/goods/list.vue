@@ -20,37 +20,27 @@
         />
         <view class="search-submit" @click="fetchList">搜索</view>
       </view>
-
-      <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
-        <view class="category-row">
-          <view
-            v-for="item in categoryOptions"
-            :key="item.value"
-            class="app-chip outline"
-            :class="{ active: categoryId === item.value }"
-            @click="setCategory(item.value)"
-          >
-            {{ item.label }}
-          </view>
-        </view>
-      </scroll-view>
-
-      <view class="filter-row">
-        <view
-          v-for="item in sortOptions"
-          :key="item.value"
-          class="filter-tab"
-          :class="{ active: quickFilter === item.value }"
-          @click="setQuickFilter(item.value)"
-        >
-          {{ item.label }}
-        </view>
-      </view>
     </view>
 
     <view class="result-bar">
       <view class="result-text">共整理 {{ displayList.length }} 件闲置，支持点击进入详情页。</view>
-      <view class="result-reset" @click="resetFilters">重置筛选</view>
+      <view class="sort-actions">
+        <view
+          class="sort-action"
+          :class="{ active: sortMode === 'time-desc' || sortMode === 'time-asc' }"
+          @click="toggleTimeSort"
+        >
+          {{ timeSortLabel }}
+        </view>
+        <view
+          class="sort-action"
+          :class="{ active: sortMode === 'price-asc' || sortMode === 'price-desc' }"
+          @click="togglePriceSort"
+        >
+          {{ priceSortLabel }}
+        </view>
+        <view class="result-reset" @click="resetFilters">重置</view>
+      </view>
     </view>
 
     <view v-if="!displayList.length" class="app-empty app-card">
@@ -59,7 +49,7 @@
 
     <view v-else class="goods-grid">
       <view
-        v-for="(item, index) in displayList"
+        v-for="(item) in displayList"
         :key="item.id"
         class="goods-card app-card"
         @click="goDetail(item.id)"
@@ -97,7 +87,7 @@
 <script>
 import { getGoodsList } from '../../api/goods'
 import { useGoodsStore } from '../../store/goods'
-import { getCategoryOptions, normalizeGoodsItem } from '../../utils/market'
+import { normalizeGoodsItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -106,46 +96,34 @@ export default {
       theme: 'light',
       themeClass: '',
       keyword: '',
-      quickFilter: 'all',
-      categoryId: 'all',
+      sortMode: 'time-desc',
       list: [],
-      goodsStore: useGoodsStore(),
-      sortOptions: [
-        { value: 'all', label: '综合' },
-        { value: 'latest', label: '最新发布' },
-        { value: 'cheap', label: '价格友好' }
-      ]
+      goodsStore: useGoodsStore()
     }
   },
   computed: {
-    categoryOptions() {
-      return getCategoryOptions()
+    timeSortLabel() {
+      return this.sortMode === 'time-asc' ? '时间正序' : '时间倒序'
+    },
+    priceSortLabel() {
+      return this.sortMode === 'price-desc' ? '价格从高到低' : '价格从低到高'
     },
     displayList() {
-      let cards = this.list.map((item, index) => normalizeGoodsItem(item, index))
+      const cards = this.list.map((item, index) => normalizeGoodsItem(item, index))
 
-      if (this.categoryId !== 'all') {
-        const filtered = cards.filter((item) => {
-          const categoryMap = {
-            recommend: true,
-            new: item.publishedAtText.includes('小时'),
-            books: item.categoryLabel === '教材',
-            digital: item.categoryLabel === '数码',
-            life: item.categoryLabel === '生活'
-          }
-          return categoryMap[this.categoryId]
-        })
-
-        cards = filtered.length ? filtered : cards
+      if (this.sortMode === 'price-asc') {
+        return cards.slice().sort((a, b) => Number(a.priceText) - Number(b.priceText))
       }
 
-      if (this.quickFilter === 'cheap') {
-        cards = cards.slice().sort((a, b) => Number(a.priceText) - Number(b.priceText))
-      } else if (this.quickFilter === 'latest') {
-        cards = cards.slice().reverse()
+      if (this.sortMode === 'price-desc') {
+        return cards.slice().sort((a, b) => Number(b.priceText) - Number(a.priceText))
       }
 
-      return cards
+      if (this.sortMode === 'time-asc') {
+        return cards.slice().sort((a, b) => Number(a.sortTime || 0) - Number(b.sortTime || 0))
+      }
+
+      return cards.slice().sort((a, b) => Number(b.sortTime || 0) - Number(a.sortTime || 0))
     }
   },
   onLoad() {
@@ -160,27 +138,47 @@ export default {
       syncThemePage(this)
       const store = this.goodsStore.sync()
       this.keyword = store.keyword
-      this.quickFilter = store.quickFilter || 'all'
-      this.categoryId = store.categoryId || 'all'
-    },
-    setCategory(value) {
-      this.categoryId = value
-      this.goodsStore.setCategoryId(value)
-    },
-    setQuickFilter(value) {
-      this.quickFilter = value
-      this.goodsStore.setQuickFilter(value)
+      this.sortMode = this.resolveSortMode(store.quickFilter)
     },
     resetFilters() {
       this.goodsStore.resetFilters()
-      this.syncPageState()
+      this.keyword = ''
+      this.sortMode = 'time-desc'
       this.fetchList()
+    },
+    resolveSortMode(value) {
+      if (value === 'price-asc' || value === 'cheap') {
+        return 'price-asc'
+      }
+      if (value === 'price-desc') {
+        return 'price-desc'
+      }
+      if (value === 'time-asc') {
+        return 'time-asc'
+      }
+      return 'time-desc'
+    },
+    persistSortMode() {
+      const sortMap = {
+        'time-desc': 'latest',
+        'time-asc': 'time-asc',
+        'price-asc': 'price-asc',
+        'price-desc': 'price-desc'
+      }
+      this.goodsStore.setQuickFilter(sortMap[this.sortMode] || 'latest')
+    },
+    toggleTimeSort() {
+      this.sortMode = this.sortMode === 'time-desc' ? 'time-asc' : 'time-desc'
+      this.persistSortMode()
+    },
+    togglePriceSort() {
+      this.sortMode = this.sortMode === 'price-asc' ? 'price-desc' : 'price-asc'
+      this.persistSortMode()
     },
     fetchList() {
       this.goodsStore.applyListQuery({
         keyword: this.keyword,
-        quickFilter: this.quickFilter,
-        categoryId: this.categoryId
+        quickFilter: this.sortMode
       })
 
       getGoodsList({
@@ -290,42 +288,6 @@ export default {
   font-weight: 600;
 }
 
-.category-scroll {
-  width: 100%;
-  white-space: nowrap;
-  margin-bottom: 18rpx;
-}
-
-.category-row {
-  display: inline-flex;
-  gap: 12rpx;
-  padding-right: 32rpx;
-}
-
-.filter-row {
-  display: flex;
-  gap: 16rpx;
-}
-
-.filter-tab {
-  flex: 1;
-  height: 66rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid var(--ink-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-subtext);
-  font-size: 25rpx;
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.filter-tab.active {
-  background: var(--ink-accent);
-  color: var(--ink-tag-active-text);
-  border-color: var(--ink-accent);
-}
-
 .result-bar {
   display: flex;
   justify-content: space-between;
@@ -341,9 +303,32 @@ export default {
   line-height: 1.7;
 }
 
+.sort-actions {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  flex-shrink: 0;
+}
+
+.sort-action,
 .result-reset {
+  min-width: 108rpx;
+  height: 58rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--ink-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 24rpx;
   color: var(--ink-text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sort-action.active {
+  background: var(--ink-accent);
+  color: var(--ink-tag-active-text);
+  border-color: var(--ink-accent);
 }
 
 .goods-grid {

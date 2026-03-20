@@ -4,7 +4,7 @@
       <view class="login-kicker">Ink Access</view>
       <view class="login-brand">水墨集市</view>
       <view class="login-text">
-        保留现有登录接口，把视觉切成更克制的黑白笔墨风。登录后可继续浏览商品、查看订单和恢复发布草稿。
+        登录后可浏览商品、查看订单，并继续编辑你的发布内容。
       </view>
     </view>
 
@@ -33,7 +33,7 @@
       <button class="app-primary-btn login-btn" @click="handleLogin">进入集市</button>
 
       <view class="login-footer">
-        <text>当前项目保留演示登录能力</text>
+        <text class="login-link" @click="goRegister">注册账号</text>
         <text class="login-divider">·</text>
         <text>成功后自动回到首页</text>
       </view>
@@ -58,13 +58,19 @@ export default {
       }
     }
   },
-  onLoad() {
+  onLoad(options) {
     syncThemePage(this)
+    if (options && options.username) {
+      this.form.username = decodeURIComponent(options.username)
+    }
   },
   onShow() {
     syncThemePage(this)
   },
   methods: {
+    goRegister() {
+      uni.navigateTo({ url: '/pages/user/register' })
+    },
     handleLogin() {
       if (!this.form.username || !this.form.password) {
         uni.showToast({ title: '请输入账号和密码', icon: 'none' })
@@ -167,6 +173,11 @@ export default {
   justify-content: center;
   color: var(--ink-subtext);
   font-size: 22rpx;
+}
+
+.login-link {
+  color: var(--ink-text);
+  font-weight: 600;
 }
 
 .login-divider {

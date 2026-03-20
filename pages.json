@@ -13,6 +13,12 @@
       }
     },
     {
+      "path": "pages/user/register",
+      "style": {
+        "navigationBarTitleText": "注册"
+      }
+    },
+    {
       "path": "pages/goods/list",
       "style": {
         "navigationBarTitleText": "商品列表"

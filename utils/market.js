@@ -7,6 +7,19 @@ function pickSeed(seed, list) {
   return list[Math.abs(seed) % list.length]
 }
 
+function parseTimeValue(value) {
+  if (!value) {
+    return 0
+  }
+
+  if (typeof value === 'number') {
+    return value
+  }
+
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
 function formatAmount(value, fallback = '0.00') {
   const amount = Number(value)
   if (Number.isNaN(amount)) {
@@ -22,6 +35,13 @@ function createSeed(item, index = 0) {
 
 export function normalizeGoodsItem(item = {}, index = 0) {
   const seed = createSeed(item, index)
+  const sortTime =
+    parseTimeValue(item.publishTime) ||
+    parseTimeValue(item.publishedAt) ||
+    parseTimeValue(item.createTime) ||
+    parseTimeValue(item.createdAt) ||
+    Number(item.id) ||
+    seed
 
   return {
     ...item,
@@ -33,6 +53,7 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     campusArea: item.campusArea || pickSeed(seed + 1, CAMPUS_ZONES),
     conditionLabel: item.conditionLabel || pickSeed(seed + 2, CONDITION_LABELS),
     categoryLabel: item.categoryLabel || pickSeed(seed + 3, CATEGORY_LABELS),
+    sortTime,
     wishCount: item.wishCount || 8 + (seed % 37),
     glanceCount: item.glanceCount || 60 + (seed % 180),
     publishedAtText: item.publishedAtText || `${1 + (seed % 6)}小时前发布`,
