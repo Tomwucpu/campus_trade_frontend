@@ -8,6 +8,13 @@ export function getOrderList(params) {
   })
 }
 
+export function getOrderDetail(id) {
+  return request({
+    url: `/orders/${id}`,
+    method: 'GET'
+  })
+}
+
 export function createOrder(data) {
   return request({
     url: '/orders',

@@ -15,11 +15,41 @@ export function getGoodsDetail(id) {
   })
 }
 
+export function getMyGoodsList(params) {
+  return request({
+    url: '/goods/mine',
+    method: 'GET',
+    data: params
+  })
+}
+
 export function createGoods(data) {
   return request({
     url: '/goods',
     method: 'POST',
     data
+  })
+}
+
+export function updateGoods(id, data) {
+  return request({
+    url: `/goods/${id}`,
+    method: 'PUT',
+    data
+  })
+}
+
+export function onSaleGoods(id) {
+  return request({
+    url: `/goods/${id}/on-sale`,
+    method: 'POST'
+  })
+}
+
+export function offSaleGoods(id) {
+  return request({
+    url: `/goods/${id}/off-sale`,
+    method: 'POST'
   })
 }
 

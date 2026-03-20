@@ -73,6 +73,13 @@ const ORDER_STATUS_META = {
   REFUNDED: { text: '已退款', type: 'default' }
 }
 
+const GOODS_STATUS_TEXT = {
+  PENDING: '待审核',
+  ON_SALE: '在售中',
+  OFFLINE: '已下架',
+  SOLD: '已售出'
+}
+
 const DEFAULT_MESSAGES = [
   { id: 'msg-seed-1', type: 'order', title: '订单已完成', content: '你最近的一笔交易已完成，可以继续浏览新的闲置商品。', time: '5分钟前', isRead: false, createdAt: Date.now() - 5 * 60 * 1000 },
   { id: 'msg-seed-2', type: 'audit', title: '商品审核通过', content: '你发布的商品已经成功上架，可以开始等待买家联系。', time: '1小时前', isRead: false, createdAt: Date.now() - 60 * 60 * 1000 },
@@ -298,7 +305,7 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     viewCount: Number(item.viewCount || item.glanceCount || 0),
     favoriteCount: Number(item.favoriteCount || 6 + (seed % 30)),
     status: item.status || 'ON_SALE',
-    statusText: item.status === 'SOLD' ? '已售出' : item.status === 'OFFLINE' ? '已下架' : item.status === 'PENDING_PAYMENT' ? '待支付' : '在售中',
+    statusText: GOODS_STATUS_TEXT[item.status] || '在售中',
     publishedAtText: formatRelativeTime(createdAt),
     createdAtText: formatDateTime(createdAt),
     createdAtValue: parseTimeValue(createdAt),
@@ -312,11 +319,15 @@ export function normalizeOrderItem(item = {}, index = 0) {
   const seed = createSeed(item, index)
   const statusMeta = ORDER_STATUS_META[item.status] || { text: item.status || '处理中', type: 'default' }
   const createdAt = item.createdAt || Date.now() - seed * 3000
+  const payTime = item.payTime || ''
+  const shipTime = item.shipTime || ''
+  const finishTime = item.finishTime || ''
+  const updatedAt = item.updatedAt || finishTime || shipTime || payTime || createdAt
   const goodsBase = normalizeGoodsItem(
     {
       id: item.goodsId || item.id,
       title: item.goodsTitle,
-      price: item.totalAmount,
+      price: item.goodsPrice || item.totalAmount,
       sellerName: item.sellerName
     },
     index
@@ -329,6 +340,9 @@ export function normalizeOrderItem(item = {}, index = 0) {
     goodsId: item.goodsId || goodsBase.id,
     goodsTitle: item.goodsTitle || goodsBase.title,
     imageUrl: goodsBase.imageUrl,
+    goodsPriceValue: Number(item.goodsPrice || item.totalAmount || 0),
+    goodsPriceText: formatAmount(item.goodsPrice || item.totalAmount || 0),
+    quantity: Number(item.quantity || 1),
     totalAmountValue: Number(item.totalAmount || 0),
     totalAmountText: formatAmount(item.totalAmount || 0),
     sellerName: item.sellerName || goodsBase.sellerName,
@@ -339,6 +353,15 @@ export function normalizeOrderItem(item = {}, index = 0) {
     createdAtText: formatDateTime(createdAt),
     createdAtRelative: formatRelativeTime(createdAt),
     createdAtValue: parseTimeValue(createdAt),
+    payTimeText: formatDateTime(payTime),
+    payTimeValue: parseTimeValue(payTime),
+    shipTimeText: formatDateTime(shipTime),
+    shipTimeValue: parseTimeValue(shipTime),
+    finishTimeText: formatDateTime(finishTime),
+    finishTimeValue: parseTimeValue(finishTime),
+    updatedAtText: formatDateTime(updatedAt),
+    updatedAtValue: parseTimeValue(updatedAt),
+    cancelReason: item.cancelReason || '',
     roleType: item.roleType || 'BUYER',
     meetupLocation: pickSeed(seed + 1, CAMPUS_LOCATIONS),
     meetupPhone: `13${(seed % 9) + 1}****${String((seed % 90) + 10).padStart(2, '0')}`
@@ -429,23 +452,26 @@ export function getOrderStatusType(status) {
 
 export function buildOrderTimeline(order = {}) {
   const status = order.status || 'PENDING_PAYMENT'
-  const currentStep = {
-    PENDING_PAYMENT: 0,
-    PAID: 1,
-    SHIPPED: 2,
-    COMPLETED: 3,
-    CANCELLED: 1,
-    REFUNDED: 1
-  }[status] || 0
-
-  const created = parseTimeValue(order.createdAt || Date.now())
+  const created = order.createdAtValue || parseTimeValue(order.createdAt || Date.now())
+  const payTime = order.payTimeValue || parseTimeValue(order.payTime)
+  const shipTime = order.shipTimeValue || parseTimeValue(order.shipTime)
+  const finishTime = order.finishTimeValue || parseTimeValue(order.finishTime)
+  const updatedAt = order.updatedAtValue || parseTimeValue(order.updatedAt)
   const orderNo = order.orderNo || ''
+
+  if (status === 'CANCELLED') {
+    return [
+      { text: '订单创建成功', time: formatDateTime(created), done: true },
+      { text: '订单已取消', time: formatDateTime(updatedAt || created), done: true },
+      { text: '交易流程结束', time: '', done: false }
+    ]
+  }
 
   return [
     { text: '订单创建成功', time: formatDateTime(created), done: true },
-    { text: '买家完成付款', time: currentStep >= 1 && status !== 'CANCELLED' ? formatDateTime(created + 2 * 60 * 1000) : '', done: currentStep >= 1 && status !== 'CANCELLED' },
-    { text: status === 'CANCELLED' ? '订单已取消' : '卖家准备发货', time: currentStep >= 2 ? formatDateTime(created + 60 * 60 * 1000) : '', done: currentStep >= 2 },
-    { text: status === 'COMPLETED' ? '交易已完成' : `等待订单 ${orderNo ? `#${orderNo.slice(-4)}` : ''} 收货`, time: currentStep >= 3 ? formatDateTime(created + 2 * 60 * 60 * 1000) : '', done: currentStep >= 3 }
+    { text: '买家完成付款', time: formatDateTime(payTime), done: ['PAID', 'SHIPPED', 'COMPLETED', 'REFUNDED'].includes(status) },
+    { text: '卖家准备发货', time: formatDateTime(shipTime), done: ['SHIPPED', 'COMPLETED'].includes(status) },
+    { text: status === 'COMPLETED' ? '交易已完成' : `等待订单 ${orderNo ? `#${orderNo.slice(-4)}` : ''} 收货`, time: formatDateTime(finishTime), done: status === 'COMPLETED' }
   ]
 }
 

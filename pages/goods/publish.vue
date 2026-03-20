@@ -5,7 +5,7 @@
         <view class="market-back-btn" @tap="goBack">
           <text class="market-back-symbol">‹</text>
         </view>
-        <view class="market-page-title">发布商品</view>
+        <view class="market-page-title">{{ pageTitle }}</view>
         <view class="market-icon-btn placeholder-btn"></view>
       </view>
 
@@ -102,8 +102,8 @@
         </view>
       </view>
 
-      <button class="market-primary-btn submit-btn" @click="submit">提交审核</button>
-      <view class="submit-tip">提交后商品会立即进入列表展示，后续可继续补充图片与说明。</view>
+      <button class="market-primary-btn submit-btn" @click="submit">{{ submitButtonText }}</button>
+      <view class="submit-tip">{{ submitTip }}</view>
     </view>
 
     <view v-if="showCategoryPicker" class="picker-mask" @click="showCategoryPicker = false">
@@ -139,10 +139,15 @@
 </template>
 
 <script>
-import { createGoods, getGoodsCategories } from '../../api/goods'
+import { createGoods, getGoodsCategories, getGoodsDetail, updateGoods } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
-import { getConditionOptions, getDefaultCategoryList, pushLocalMessage } from '../../utils/market'
+import {
+  getConditionOptions,
+  getDefaultCategoryList,
+  normalizeGoodsItem,
+  pushLocalMessage
+} from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 const DRAFT_KEY = 'goods_publish_draft'
@@ -162,6 +167,8 @@ function createDefaultForm() {
 export default {
   data() {
     return {
+      id: '',
+      isEdit: false,
       theme: 'light',
       themeClass: 'theme-light',
       authStore: useAuthStore(),
@@ -174,6 +181,9 @@ export default {
     }
   },
   computed: {
+    draftKey() {
+      return this.isEdit && this.id ? `${DRAFT_KEY}_${this.id}` : DRAFT_KEY
+    },
     imageList() {
       return Array.isArray(this.form.images) ? this.form.images : []
     },
@@ -184,22 +194,45 @@ export default {
     selectedConditionLabel() {
       const current = this.conditionOptions.find((item) => Number(item.value) === Number(this.form.conditionLevel))
       return current ? current.label : ''
+    },
+    pageTitle() {
+      return this.isEdit ? '编辑商品' : '发布商品'
+    },
+    submitButtonText() {
+      return this.isEdit ? '保存修改' : '提交审核'
+    },
+    submitTip() {
+      return this.isEdit
+        ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
+        : '提交后商品会立即进入列表展示，后续可继续补充图片与说明。'
     }
   },
-  onLoad() {
+  onLoad(options) {
     syncThemePage(this)
+    this.id = (options && options.id) || ''
+    this.isEdit = Boolean(this.id)
+    if (this.isEdit && !this.authStore.sync().isLoggedIn()) {
+      uni.showToast({ title: '请先登录后再编辑商品', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 260)
+      return
+    }
     this.restoreDraft()
     this.fetchCategories()
+    if (this.isEdit && !this.form.title) {
+      this.fetchDetail()
+    }
   },
   onShow() {
     syncThemePage(this)
   },
   methods: {
     saveDraft() {
-      uni.setStorageSync(DRAFT_KEY, this.form)
+      uni.setStorageSync(this.draftKey, this.form)
     },
     restoreDraft() {
-      const draft = uni.getStorageSync(DRAFT_KEY)
+      const draft = uni.getStorageSync(this.draftKey)
       this.form = draft && typeof draft === 'object' ? { ...createDefaultForm(), ...draft } : createDefaultForm()
     },
     fetchCategories() {
@@ -213,6 +246,30 @@ export default {
           }
         })
         .catch(() => {})
+    },
+    fetchDetail() {
+      getGoodsDetail(this.id)
+        .then((res) => {
+          if (res && res.code === 0 && res.data) {
+            const detail = normalizeGoodsItem(res.data, 0)
+            this.form = {
+              ...createDefaultForm(),
+              title: detail.title || '',
+              categoryId: detail.categoryId || 1,
+              conditionLevel: Number(detail.conditionLevel) || 9,
+              price: detail.priceValue ? String(detail.priceValue) : '',
+              originalPrice: detail.originalPriceValue ? String(detail.originalPriceValue) : '',
+              description: detail.description || '',
+              images: Array.isArray(detail.gallery) && detail.gallery.length ? detail.gallery.slice(0, 9) : []
+            }
+            this.saveDraft()
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '商品加载失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '商品加载失败', icon: 'none' })
+        })
     },
     chooseImages() {
       uni.chooseImage({
@@ -239,7 +296,7 @@ export default {
     },
     submit() {
       if (!this.authStore.sync().isLoggedIn()) {
-        uni.showToast({ title: '请先登录后再发布', icon: 'none' })
+        uni.showToast({ title: '请先登录后再操作', icon: 'none' })
         setTimeout(() => {
           uni.navigateTo({ url: '/pages/user/login' })
         }, 260)
@@ -251,34 +308,51 @@ export default {
         return
       }
 
-      createGoods({
-        title: this.form.title,
+      const price = Number(this.form.price)
+      const originalPrice = this.form.originalPrice ? Number(this.form.originalPrice) : null
+      if (!price || Number.isNaN(price) || price <= 0) {
+        uni.showToast({ title: '请输入正确的出售价格', icon: 'none' })
+        return
+      }
+      if (originalPrice !== null && (Number.isNaN(originalPrice) || originalPrice < 0)) {
+        uni.showToast({ title: '请输入正确的原价', icon: 'none' })
+        return
+      }
+
+      const payload = {
+        title: this.form.title.trim(),
         categoryId: Number(this.form.categoryId),
         conditionLevel: Number(this.form.conditionLevel),
-        price: Number(this.form.price),
-        originalPrice: this.form.originalPrice ? Number(this.form.originalPrice) : null,
-        description: this.form.description
-      })
+        price,
+        originalPrice,
+        description: this.form.description.trim()
+      }
+      const action = this.isEdit ? () => updateGoods(this.id, payload) : () => createGoods(payload)
+
+      action()
         .then((res) => {
           if (res && res.code === 0 && res.data) {
-            uni.removeStorageSync(DRAFT_KEY)
+            const targetId = res.data.id || this.id
+            uni.removeStorageSync(this.draftKey)
             pushLocalMessage({
               type: 'audit',
-              title: '商品发布成功',
-              content: `你发布的“${this.form.title}”已成功进入市集列表。`
+              title: this.isEdit ? '商品修改成功' : '商品发布成功',
+              content: this.isEdit
+                ? `你发布的“${payload.title}”已完成修改。`
+                : `你发布的“${payload.title}”已成功进入市集列表。`
             })
-            this.goodsStore.setLastViewedId(res.data.id)
+            this.goodsStore.setLastViewedId(targetId)
             this.form = createDefaultForm()
-            uni.showToast({ title: res.message || '发布成功', icon: 'success' })
+            uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
             setTimeout(() => {
-              uni.redirectTo({ url: `/pages/goods/detail?id=${res.data.id}` })
+              uni.redirectTo({ url: `/pages/goods/detail?id=${targetId}` })
             }, 260)
             return
           }
-          uni.showToast({ title: (res && res.message) || '发布失败', icon: 'none' })
+          uni.showToast({ title: (res && res.message) || '提交失败', icon: 'none' })
         })
         .catch(() => {
-          uni.showToast({ title: '发布失败', icon: 'none' })
+          uni.showToast({ title: '提交失败', icon: 'none' })
         })
     },
     goBack() {

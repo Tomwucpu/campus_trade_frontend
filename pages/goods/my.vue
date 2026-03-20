@@ -16,7 +16,7 @@
             :key="item.value"
             class="tab-item"
             :class="{ active: activeTab === item.value }"
-            @click="activeTab = item.value"
+            @click="setActiveTab(item.value)"
           >
             {{ item.label }}
           </view>
@@ -28,8 +28,8 @@
       <EmptyState
         v-if="!displayList.length"
         icon="🗂"
-        title="当前分类下还没有商品"
-        description="你可以继续发布新的闲置，或者回到其他状态标签查看。"
+        title="当前状态下还没有商品"
+        description="你可以继续发布新的闲置，或者切换到其他状态标签查看。"
         button-text="去发布"
         @action="goPublish"
       />
@@ -45,6 +45,37 @@
             </view>
             <StatusTag :status="statusText(item.status)" :type="statusType(item.status)" />
           </view>
+
+          <view class="goods-actions">
+            <button
+              v-if="canEdit(item)"
+              class="market-secondary-btn action-btn"
+              @click.stop="editGoods(item.id)"
+            >
+              编辑商品
+            </button>
+            <button
+              v-if="item.status === 'ON_SALE'"
+              class="market-primary-btn action-btn"
+              @click.stop="changeStatus(item, 'OFFLINE')"
+            >
+              下架商品
+            </button>
+            <button
+              v-else-if="item.status === 'OFFLINE'"
+              class="market-primary-btn action-btn"
+              @click.stop="changeStatus(item, 'ON_SALE')"
+            >
+              重新上架
+            </button>
+            <button
+              v-else
+              class="market-secondary-btn action-btn"
+              @click.stop="openDetail(item.id)"
+            >
+              查看详情
+            </button>
+          </view>
         </view>
       </view>
     </view>
@@ -52,11 +83,11 @@
 </template>
 
 <script>
-import { getGoodsList } from '../../api/goods'
+import { getMyGoodsList, offSaleGoods, onSaleGoods } from '../../api/goods'
 import EmptyState from '../../components/EmptyState.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
-import { getFallbackGoodsList, normalizeGoodsItem } from '../../utils/market'
+import { normalizeGoodsItem, pushLocalMessage } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -81,16 +112,9 @@ export default {
   },
   computed: {
     displayList() {
-      const currentUserId = String(this.authStore.sync().getUserId() || '')
-      const currentName = this.authStore.getDisplayName()
-      const base = (this.list.length ? this.list : getFallbackGoodsList()).map((item, index) => normalizeGoodsItem(item, index))
-      const owned = base.filter((item) => {
-        if (!currentUserId && !currentName) {
-          return false
-        }
-        return String(item.sellerId || '') === currentUserId || item.sellerName === currentName
-      })
-      return owned.filter((item) => item.status === this.activeTab)
+      return this.list
+        .map((item, index) => normalizeGoodsItem(item, index))
+        .filter((item) => item.status === this.activeTab)
     }
   },
   onLoad() {
@@ -117,10 +141,18 @@ export default {
       }, 260)
       return false
     },
+    setActiveTab(value) {
+      if (this.activeTab === value) {
+        return
+      }
+      this.activeTab = value
+      this.fetchList()
+    },
     fetchList() {
-      getGoodsList({
+      getMyGoodsList({
         pageNum: 1,
-        pageSize: 50
+        pageSize: 50,
+        status: this.activeTab
       })
         .then((res) => {
           if (res && res.code === 0) {
@@ -132,6 +164,9 @@ export default {
         .catch(() => {
           this.list = []
         })
+    },
+    canEdit(item) {
+      return item.status !== 'SOLD'
     },
     statusText(status) {
       if (status === 'ON_SALE') {
@@ -159,6 +194,31 @@ export default {
     },
     openDetail(id) {
       uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
+    },
+    editGoods(id) {
+      uni.navigateTo({ url: `/pages/goods/publish?id=${id}` })
+    },
+    changeStatus(item, nextStatus) {
+      const action = nextStatus === 'ON_SALE' ? () => onSaleGoods(item.id) : () => offSaleGoods(item.id)
+      const title = nextStatus === 'ON_SALE' ? '商品已重新上架' : '商品已下架'
+
+      action()
+        .then((res) => {
+          if (res && res.code === 0) {
+            pushLocalMessage({
+              type: 'audit',
+              title,
+              content: `你发布的“${item.title}”状态已更新为“${this.statusText(nextStatus)}”。`
+            })
+            uni.showToast({ title: res.message || title, icon: 'success' })
+            this.fetchList()
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        })
     },
     goPublish() {
       uni.navigateTo({ url: '/pages/goods/publish' })
@@ -237,6 +297,12 @@ export default {
   align-items: center;
 }
 
+.goods-actions {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+
 .goods-image {
   width: 150rpx;
   height: 150rpx;
@@ -266,5 +332,9 @@ export default {
   font-size: 22rpx;
   color: #6c757d;
   line-height: 1.7;
+}
+
+.action-btn {
+  flex: 1;
 }
 </style>

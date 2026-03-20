@@ -18,8 +18,9 @@
 
     <view class="market-shell detail-shell">
       <view class="market-card detail-card">
-        <view class="market-section-title">收货信息</view>
+        <view class="market-section-title">交付联系</view>
         <view class="detail-line strong">{{ addressText }}</view>
+        <view class="detail-line">{{ deliveryHint }}</view>
       </view>
 
       <view class="market-card detail-card">
@@ -46,10 +47,39 @@
             <text class="info-value">{{ order.createdAtText }}</text>
           </view>
           <view class="info-row">
+            <text class="info-label">商品单价</text>
+            <text class="info-value">¥{{ order.goodsPriceText }}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">购买数量</text>
+            <text class="info-value">{{ order.quantity }}</text>
+          </view>
+          <view class="info-row">
             <text class="info-label">当前状态</text>
             <StatusTag :status="order.statusText" :type="order.statusType" />
           </view>
+          <view v-if="order.payTimeText" class="info-row">
+            <text class="info-label">付款时间</text>
+            <text class="info-value">{{ order.payTimeText }}</text>
+          </view>
+          <view v-if="order.shipTimeText" class="info-row">
+            <text class="info-label">发货时间</text>
+            <text class="info-value">{{ order.shipTimeText }}</text>
+          </view>
+          <view v-if="order.finishTimeText" class="info-row">
+            <text class="info-label">完成时间</text>
+            <text class="info-value">{{ order.finishTimeText }}</text>
+          </view>
+          <view v-if="order.cancelReason" class="info-row align-start">
+            <text class="info-label">取消原因</text>
+            <text class="info-value multiline">{{ order.cancelReason }}</text>
+          </view>
         </view>
+      </view>
+
+      <view class="market-card detail-card">
+        <view class="market-section-title">交易备注</view>
+        <view class="detail-line strong">{{ orderRemark }}</view>
       </view>
 
       <view class="market-card detail-card">
@@ -83,7 +113,7 @@
 </template>
 
 <script>
-import { cancelOrder, completeOrder, getOrderList, payOrder, shipOrder } from '../../api/order'
+import { cancelOrder, completeOrder, getOrderDetail, payOrder, shipOrder } from '../../api/order'
 import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
@@ -115,6 +145,30 @@ export default {
     },
     addressText() {
       return createCampusAddress(this.order)
+    },
+    deliveryHint() {
+      if (this.order.status === 'SHIPPED' || this.order.status === 'COMPLETED') {
+        return '商品已进入当面交付阶段，建议保留聊天记录并核对商品配件。'
+      }
+      if (this.order.status === 'PAID') {
+        return '卖家确认后会在约定地点交付商品，你可以继续和对方确认具体时间。'
+      }
+      return '校园二手交易默认采用校内面交，请提前确认地点和时间。'
+    },
+    orderRemark() {
+      if (this.order.cancelReason) {
+        return `订单备注：${this.order.cancelReason}`
+      }
+      if (this.order.status === 'COMPLETED') {
+        return '本次交易已完成，如商品存在问题请尽快联系对方沟通。'
+      }
+      if (this.order.status === 'SHIPPED') {
+        return '卖家已确认交付，若你已经收到商品，请尽快确认收货完成交易。'
+      }
+      if (this.order.status === 'PAID') {
+        return '订单已付款成功，等待卖家完成交付。'
+      }
+      return '若临时变更时间或地点，建议通过站内消息及时同步，避免跑空。'
     },
     statusSubtitle() {
       if (this.order.status === 'PENDING_PAYMENT') {
@@ -156,6 +210,10 @@ export default {
     }
     syncThemePage(this)
     this.id = (options && options.id) || ''
+    if (!this.id) {
+      uni.showToast({ title: '缺少订单编号', icon: 'none' })
+      return
+    }
     this.loadOrder()
   },
   methods: {
@@ -173,24 +231,16 @@ export default {
       const cached = this.orderStore.sync().currentOrder
       if (cached && String(cached.id) === String(this.id)) {
         this.order = normalizeOrderItem(cached, 0)
-        return
       }
 
-      getOrderList({
-        pageNum: 1,
-        pageSize: 50
-      })
+      getOrderDetail(this.id)
         .then((res) => {
-          if (res && res.code === 0) {
-            const records = (res.data && res.data.records) || []
-            const matched = records.find((item) => String(item.id) === String(this.id))
-            if (matched) {
-              this.order = normalizeOrderItem(matched, 0)
-              this.orderStore.setCurrentOrder(this.order)
-              return
-            }
+          if (res && res.code === 0 && res.data) {
+            this.order = normalizeOrderItem(res.data, 0)
+            this.orderStore.setCurrentOrder(this.order)
+            return
           }
-          uni.showToast({ title: '订单不存在或已失效', icon: 'none' })
+          uni.showToast({ title: (res && res.message) || '订单不存在或已失效', icon: 'none' })
         })
         .catch(() => {
           uni.showToast({ title: '订单加载失败', icon: 'none' })
@@ -363,6 +413,11 @@ export default {
   gap: 16rpx;
 }
 
+.info-row.align-start {
+  align-items: flex-start;
+  padding-top: 10rpx;
+}
+
 .info-label {
   font-size: 23rpx;
   color: #6c757d;
@@ -371,6 +426,13 @@ export default {
 .info-value {
   font-size: 23rpx;
   color: #2c3e50;
+  text-align: right;
+}
+
+.info-value.multiline {
+  flex: 1;
+  text-align: left;
+  line-height: 1.8;
 }
 
 .timeline-list {
