@@ -4,8 +4,9 @@
       <view class="login-kicker">Ink Access</view>
       <view class="login-brand">水墨集市</view>
       <view class="login-text">
-        登录后可浏览商品、查看订单，并继续编辑你的发布内容。
+        登录后可浏览商品、查看订单，并继续管理你发布的闲置内容。
       </view>
+      <view class="login-demo">可先注册新账号，也可使用示例账号 `demo_buyer / password`。</view>
     </view>
 
     <view class="login-card app-card">
@@ -16,7 +17,7 @@
         <input
           v-model="form.username"
           class="app-input"
-          placeholder="输入用户名"
+          placeholder="请输入用户名"
         />
       </view>
 
@@ -26,7 +27,7 @@
           v-model="form.password"
           class="app-input"
           password
-          placeholder="输入密码"
+          placeholder="请输入密码"
         />
       </view>
 
@@ -35,7 +36,7 @@
       <view class="login-footer">
         <text class="login-link" @click="goRegister">注册账号</text>
         <text class="login-divider">·</text>
-        <text>成功后自动回到首页</text>
+        <text>登录成功后将自动回到首页</text>
       </view>
     </view>
   </view>
@@ -83,6 +84,7 @@ export default {
             this.authStore.setSession({
               token: res.data.token,
               profile: {
+                id: res.data.userId,
                 username: res.data.username || this.form.username
               }
             })
@@ -133,11 +135,17 @@ export default {
   margin-bottom: 18rpx;
 }
 
-.login-text {
+.login-text,
+.login-demo {
   max-width: 560rpx;
   font-size: 25rpx;
   line-height: 1.9;
   color: var(--ink-subtext);
+}
+
+.login-demo {
+  margin-top: 12rpx;
+  font-size: 22rpx;
 }
 
 .login-card {

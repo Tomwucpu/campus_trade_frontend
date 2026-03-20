@@ -14,3 +14,18 @@ export function getGoodsDetail(id) {
     method: 'GET'
   })
 }
+
+export function createGoods(data) {
+  return request({
+    url: '/goods',
+    method: 'POST',
+    data
+  })
+}
+
+export function getGoodsCategories() {
+  return request({
+    url: '/goods/categories',
+    method: 'GET'
+  })
+}

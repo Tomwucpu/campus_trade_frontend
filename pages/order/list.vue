@@ -23,7 +23,7 @@
     </view>
 
     <view v-if="!displayList.length" class="app-empty app-card">
-      目前没有符合条件的订单记录，去首页逛逛新的闲置也不错。
+      当前没有符合条件的订单记录，去首页看看有没有合适的闲置也不错。
     </view>
 
     <view v-else class="order-list">
@@ -45,12 +45,18 @@
 
         <view class="order-card-bottom">
           <view>
-            <view class="order-seller">卖家：{{ item.sellerName }}</view>
+            <view class="order-seller">
+              {{ item.roleType === 'SELLER' ? '买家' : '卖家' }}：{{ item.counterpartName }}
+            </view>
             <view class="order-price app-price">¥{{ item.totalAmountText }}</view>
           </view>
           <view class="order-actions">
-            <view class="action-ghost" @click="goGoodsList">继续逛</view>
-            <view class="action-solid" @click="contactSeller">联系卖家</view>
+            <view class="action-ghost" @click="handleSecondaryAction(item)">
+              {{ secondaryActionLabel(item) }}
+            </view>
+            <view class="action-solid" @click="handlePrimaryAction(item)">
+              {{ primaryActionLabel(item) }}
+            </view>
           </view>
         </view>
       </view>
@@ -59,7 +65,8 @@
 </template>
 
 <script>
-import { getOrderList } from '../../api/order'
+import { cancelOrder, completeOrder, getOrderList, payOrder, shipOrder } from '../../api/order'
+import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
 import { normalizeOrderItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
@@ -72,12 +79,15 @@ export default {
       list: [],
       status: 'all',
       currentOrderId: null,
+      authStore: useAuthStore(),
       orderStore: useOrderStore(),
       statusOptions: [
         { value: 'all', label: '全部' },
-        { value: 'PENDING_PAYMENT', label: '待付款' },
-        { value: 'PENDING_RECEIPT', label: '待收货' },
-        { value: 'COMPLETED', label: '已完成' }
+        { value: 'PENDING_PAYMENT', label: '待支付' },
+        { value: 'PAID', label: '待发货' },
+        { value: 'SHIPPED', label: '待收货' },
+        { value: 'COMPLETED', label: '已完成' },
+        { value: 'CANCELLED', label: '已取消' }
       ]
     }
   },
@@ -91,13 +101,30 @@ export default {
     }
   },
   onLoad() {
+    if (!this.ensureLogin()) {
+      return
+    }
     this.syncPageState()
     this.fetchList()
   },
   onShow() {
+    if (!this.ensureLogin()) {
+      return
+    }
     this.syncPageState()
+    this.fetchList()
   },
   methods: {
+    ensureLogin() {
+      if (this.authStore.sync().isLoggedIn()) {
+        return true
+      }
+      uni.showToast({ title: '请先登录后查看订单', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 300)
+      return false
+    },
     syncPageState() {
       syncThemePage(this)
       const store = this.orderStore.sync()
@@ -107,9 +134,14 @@ export default {
     setStatus(value) {
       this.status = value
       this.orderStore.setStatus(value)
+      this.fetchList()
     },
     fetchList() {
-      getOrderList({ pageNum: 1, pageSize: 20 })
+      getOrderList({
+        pageNum: 1,
+        pageSize: 20,
+        status: this.status === 'all' ? undefined : this.status
+      })
         .then((res) => {
           if (res && res.code === 0) {
             this.list = (res.data && res.data.records) || []
@@ -121,11 +153,60 @@ export default {
           uni.showToast({ title: '订单加载失败', icon: 'none' })
         })
     },
-    goGoodsList() {
+    primaryActionLabel(item) {
+      if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
+        return '模拟支付'
+      }
+      if (item.roleType === 'SELLER' && item.status === 'PAID') {
+        return '确认发货'
+      }
+      if (item.roleType === 'BUYER' && item.status === 'SHIPPED') {
+        return '确认收货'
+      }
+      return '联系对方'
+    },
+    secondaryActionLabel(item) {
+      if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
+        return '取消订单'
+      }
+      return '继续逛逛'
+    },
+    handlePrimaryAction(item) {
+      if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
+        this.runAction(() => payOrder(item.id), item.id)
+        return
+      }
+      if (item.roleType === 'SELLER' && item.status === 'PAID') {
+        this.runAction(() => shipOrder(item.id), item.id)
+        return
+      }
+      if (item.roleType === 'BUYER' && item.status === 'SHIPPED') {
+        this.runAction(() => completeOrder(item.id), item.id)
+        return
+      }
+      uni.showToast({ title: '请与对方确认交易细节', icon: 'none' })
+    },
+    handleSecondaryAction(item) {
+      if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
+        this.runAction(() => cancelOrder(item.id), item.id)
+        return
+      }
       uni.navigateTo({ url: '/pages/goods/list' })
     },
-    contactSeller() {
-      uni.showToast({ title: '请与卖家确认面交时间', icon: 'none' })
+    runAction(action, orderId) {
+      action()
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.orderStore.setCurrentOrderId(orderId)
+            uni.showToast({ title: res.message || '操作成功', icon: 'success' })
+            this.fetchList()
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        })
     }
   }
 }
@@ -287,7 +368,7 @@ export default {
 
 .action-ghost,
 .action-solid {
-  min-width: 110rpx;
+  min-width: 128rpx;
   height: 64rpx;
   border-radius: 999rpx;
   display: flex;

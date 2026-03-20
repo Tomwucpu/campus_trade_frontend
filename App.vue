@@ -4,7 +4,7 @@ import { applyNavigationTheme, getTheme } from './utils/theme'
 export default {
   onLaunch() {
     applyNavigationTheme(getTheme())
-    console.log('校园二手交易平台启动')
+    console.log('校园二手交易平台已启动')
   }
 }
 </script>

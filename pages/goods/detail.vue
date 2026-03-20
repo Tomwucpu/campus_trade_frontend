@@ -12,7 +12,7 @@
     <view class="detail-card app-card">
       <view class="price-line">
         <view class="detail-price app-price">¥{{ detail.priceText }}</view>
-        <view class="detail-views">{{ detail.wishCount }} 人想要 · {{ detail.glanceCount }} 浏览</view>
+        <view class="detail-views">{{ detail.statusText }} · {{ detail.glanceCount }} 浏览</view>
       </view>
       <view class="detail-title">{{ detail.title }}</view>
       <view class="detail-tags">
@@ -26,7 +26,7 @@
         <view class="seller-avatar">{{ detail.sellerName.slice(0, 1) }}</view>
         <view class="seller-copy">
           <view class="seller-name">{{ detail.sellerName }}</view>
-          <view class="seller-meta">面交地点：{{ detail.campusArea }}</view>
+          <view class="seller-meta">发布时间：{{ detail.publishedAtText }}</view>
         </view>
       </view>
       <view class="seller-chip">{{ detail.conditionLabel }}</view>
@@ -35,7 +35,7 @@
     <view class="note-card app-card">
       <view class="note-title">交易提醒</view>
       <view class="note-text">
-        建议在校园公开区域当面验货，确认配件完整、价格一致后再完成交易；如需进一步沟通，可直接联系卖家。
+        建议在校内公开区域当面验货，确认配件完整、价格一致后再完成交易；若订单已创建，请在订单页继续处理支付、发货与收货动作。
       </view>
     </view>
 
@@ -47,16 +47,19 @@
         </view>
         <view class="mini-action" @click="backToList">
           <text class="mini-action-icon">市</text>
-          <text class="mini-action-label">回到列表</text>
+          <text class="mini-action-label">返回列表</text>
         </view>
       </view>
-      <button class="app-primary-btn want-btn" @click="wantThis">我想要</button>
+      <button class="app-primary-btn want-btn" :disabled="actionDisabled" @click="createTradeOrder">
+        {{ actionText }}
+      </button>
     </view>
   </view>
 </template>
 
 <script>
 import { getGoodsDetail } from '../../api/goods'
+import { createOrder } from '../../api/order'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import { useOrderStore } from '../../store/order'
@@ -73,6 +76,29 @@ export default {
       goodsStore: useGoodsStore(),
       orderStore: useOrderStore(),
       detail: normalizeGoodsItem({}, 0)
+    }
+  },
+  computed: {
+    isOwnGoods() {
+      return String(this.authStore.sync().getUserId() || '') === String(this.detail.sellerId || '')
+    },
+    actionDisabled() {
+      return !this.detail.id || this.isOwnGoods || this.detail.status !== 'ON_SALE'
+    },
+    actionText() {
+      if (!this.detail.id) {
+        return '加载中'
+      }
+      if (this.isOwnGoods) {
+        return '自己发布'
+      }
+      if (this.detail.status === 'OFFLINE') {
+        return '交易进行中'
+      }
+      if (this.detail.status === 'SOLD') {
+        return '已售出'
+      }
+      return '立即下单'
     }
   },
   onLoad(options) {
@@ -120,17 +146,39 @@ export default {
       if (!this.ensureLogin()) {
         return
       }
-      uni.showToast({ title: '请与卖家沟通面交细节', icon: 'none' })
+      uni.showToast({ title: '请在订单或聊天工具中联系卖家', icon: 'none' })
     },
     backToList() {
-      uni.navigateTo({ url: '/pages/goods/list' })
+      uni.navigateBack({
+        fail: () => {
+          uni.navigateTo({ url: '/pages/goods/list' })
+        }
+      })
     },
-    wantThis() {
+    createTradeOrder() {
+      if (this.actionDisabled) {
+        uni.showToast({ title: this.actionText, icon: 'none' })
+        return
+      }
       if (!this.ensureLogin()) {
         return
       }
-      this.orderStore.setCurrentOrderId(this.id)
-      uni.navigateTo({ url: '/pages/order/list' })
+
+      createOrder({ goodsId: Number(this.id) })
+        .then((res) => {
+          if (res && res.code === 0 && res.data) {
+            this.orderStore.setCurrentOrderId(res.data.id)
+            uni.showToast({ title: res.message || '下单成功', icon: 'success' })
+            setTimeout(() => {
+              uni.navigateTo({ url: '/pages/order/list' })
+            }, 300)
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '下单失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '下单失败', icon: 'none' })
+        })
     }
   }
 }

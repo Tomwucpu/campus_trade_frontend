@@ -5,7 +5,7 @@
         <view class="publish-kicker">Handwritten Draft</view>
         <view class="publish-title">闲置落墨</view>
       </view>
-      <view class="draft-tip">草稿</view>
+      <view class="draft-tip">发布页</view>
     </view>
 
     <view class="publish-card app-card">
@@ -21,26 +21,58 @@
       />
 
       <view class="field-head spaced">
+        <view class="field-title">分类</view>
+        <view class="field-note">选择商品所属分类，方便买家检索</view>
+      </view>
+      <view class="chip-group">
+        <view
+          v-for="item in categories"
+          :key="item.id"
+          class="app-chip outline"
+          :class="{ active: String(form.categoryId) === String(item.id) }"
+          @click="selectCategory(item.id)"
+        >
+          {{ item.name }}
+        </view>
+      </view>
+
+      <view class="field-head spaced">
+        <view class="field-title">成色</view>
+        <view class="field-note">简单标记成色，方便沟通</view>
+      </view>
+      <view class="chip-group">
+        <view
+          v-for="item in conditionOptions"
+          :key="item"
+          class="app-chip outline"
+          :class="{ active: Number(form.conditionLevel) === Number(item) }"
+          @click="selectCondition(item)"
+        >
+          {{ item }} 成新
+        </view>
+      </view>
+
+      <view class="field-head spaced">
         <view class="field-title">描述</view>
-        <view class="field-note">可以写成色、购买时间、配件和面交地点</view>
+        <view class="field-note">可以补充成色、购入时间、配件和面交地点</view>
       </view>
       <textarea
         v-model="form.description"
         class="app-textarea"
-        placeholder="把商品故事写得更具体一点，会更容易成交。"
+        placeholder="把商品状况写得更具体一点，会更容易成交。"
         @input="saveDraft"
       />
 
       <view class="poster-preview">
         <view class="poster-stamp">预览</view>
         <view class="poster-title">{{ form.title || '你的商品标题会出现在这里' }}</view>
-        <view class="poster-desc">{{ form.description || '描述内容会在这里生成预览，方便你检查文案节奏。' }}</view>
+        <view class="poster-desc">{{ form.description || '描述内容会在这里生成预览，方便检查文案节奏。' }}</view>
       </view>
     </view>
 
     <view class="publish-card app-card">
       <view class="field-row">
-        <view class="row-label">价格</view>
+        <view class="row-label">售价</view>
         <view class="price-shell">
           <text class="price-symbol">¥</text>
           <input
@@ -53,24 +85,40 @@
         </view>
       </view>
       <view class="field-row">
-        <view class="row-label">交付方式</view>
+        <view class="row-label">原价</view>
+        <view class="price-shell">
+          <text class="price-symbol">¥</text>
+          <input
+            v-model="form.originalPrice"
+            type="digit"
+            class="price-input"
+            placeholder="选填"
+            @input="saveDraft"
+          />
+        </view>
+      </view>
+      <view class="field-row">
+        <view class="row-label">交易方式</view>
         <view class="row-value">同校面交 / 宿舍楼下自提</view>
       </view>
       <view class="field-row borderless">
-        <view class="row-label">保存方式</view>
-        <view class="row-value">本地草稿</view>
+        <view class="row-label">草稿状态</view>
+        <view class="row-value">本地自动保存</view>
       </view>
     </view>
 
     <view class="bottom-tools">
       <button class="app-secondary-btn bottom-btn" @click="restoreDraft">恢复草稿</button>
-      <button class="app-primary-btn bottom-btn" @click="submit">保存并提交</button>
+      <button class="app-primary-btn bottom-btn" @click="submit">发布商品</button>
     </view>
   </view>
 </template>
 
 <script>
+import { createGoods, getGoodsCategories } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
+import { useGoodsStore } from '../../store/goods'
+import { getConditionOptions, getDefaultCategoryList } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 const DRAFT_KEY = 'goods_publish_draft'
@@ -78,7 +126,10 @@ const DRAFT_KEY = 'goods_publish_draft'
 function createDefaultForm() {
   return {
     title: '',
+    categoryId: 1,
+    conditionLevel: 9,
     price: '',
+    originalPrice: '',
     description: ''
   }
 }
@@ -89,12 +140,16 @@ export default {
       theme: 'light',
       themeClass: '',
       authStore: useAuthStore(),
-      form: createDefaultForm()
+      goodsStore: useGoodsStore(),
+      form: createDefaultForm(),
+      categories: getDefaultCategoryList(),
+      conditionOptions: getConditionOptions()
     }
   },
   onLoad() {
     syncThemePage(this)
     this.restoreDraft()
+    this.fetchCategories()
   },
   onShow() {
     syncThemePage(this)
@@ -106,6 +161,26 @@ export default {
     restoreDraft() {
       const draft = uni.getStorageSync(DRAFT_KEY)
       this.form = draft && typeof draft === 'object' ? { ...createDefaultForm(), ...draft } : createDefaultForm()
+    },
+    fetchCategories() {
+      getGoodsCategories()
+        .then((res) => {
+          if (res && res.code === 0 && Array.isArray(res.data) && res.data.length) {
+            this.categories = res.data
+            if (!this.form.categoryId) {
+              this.form.categoryId = res.data[0].id
+            }
+          }
+        })
+        .catch(() => {})
+    },
+    selectCategory(id) {
+      this.form.categoryId = id
+      this.saveDraft()
+    },
+    selectCondition(level) {
+      this.form.conditionLevel = level
+      this.saveDraft()
     },
     submit() {
       if (!this.authStore.sync().isLoggedIn()) {
@@ -121,8 +196,30 @@ export default {
         return
       }
 
-      this.saveDraft()
-      uni.showToast({ title: '已保存草稿', icon: 'none' })
+      createGoods({
+        title: this.form.title,
+        categoryId: Number(this.form.categoryId),
+        conditionLevel: Number(this.form.conditionLevel),
+        price: Number(this.form.price),
+        originalPrice: this.form.originalPrice ? Number(this.form.originalPrice) : null,
+        description: this.form.description
+      })
+        .then((res) => {
+          if (res && res.code === 0 && res.data) {
+            uni.removeStorageSync(DRAFT_KEY)
+            this.form = createDefaultForm()
+            this.goodsStore.setLastViewedId(res.data.id)
+            uni.showToast({ title: res.message || '发布成功', icon: 'success' })
+            setTimeout(() => {
+              uni.redirectTo({ url: `/pages/goods/detail?id=${res.data.id}` })
+            }, 300)
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '发布失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '发布失败', icon: 'none' })
+        })
     }
   }
 }
@@ -185,6 +282,12 @@ export default {
 .field-note {
   font-size: 22rpx;
   color: var(--ink-subtext);
+}
+
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
 
 .poster-preview {

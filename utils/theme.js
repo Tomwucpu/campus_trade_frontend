@@ -4,12 +4,12 @@ const THEME_META = {
   light: {
     navFrontColor: '#000000',
     navBackgroundColor: '#f5f1e8',
-    label: '白描'
+    label: '浅墨'
   },
   dark: {
     navFrontColor: '#ffffff',
     navBackgroundColor: '#111111',
-    label: '玄墨'
+    label: '夜墨'
   }
 }
 

@@ -7,3 +7,39 @@ export function getOrderList(params) {
     data: params
   })
 }
+
+export function createOrder(data) {
+  return request({
+    url: '/orders',
+    method: 'POST',
+    data
+  })
+}
+
+export function payOrder(id) {
+  return request({
+    url: `/orders/${id}/pay`,
+    method: 'POST'
+  })
+}
+
+export function shipOrder(id) {
+  return request({
+    url: `/orders/${id}/ship`,
+    method: 'POST'
+  })
+}
+
+export function completeOrder(id) {
+  return request({
+    url: `/orders/${id}/complete`,
+    method: 'POST'
+  })
+}
+
+export function cancelOrder(id) {
+  return request({
+    url: `/orders/${id}/cancel`,
+    method: 'POST'
+  })
+}

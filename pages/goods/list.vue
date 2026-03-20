@@ -6,15 +6,15 @@
           <view class="list-kicker">Ink Market Feed</view>
           <view class="list-title">市集长卷</view>
         </view>
-        <view class="hero-refresh" @click="fetchList">重载</view>
+        <view class="hero-refresh" @click="fetchList">刷新</view>
       </view>
 
       <view class="search-box">
-        <view class="search-mark">寻</view>
+        <view class="search-mark">搜</view>
         <input
           v-model="keyword"
           class="search-input"
-          placeholder="输入关键词，找书、找数码、找生活小物"
+          placeholder="输入关键词，搜索教材、数码或生活闲置"
           confirm-type="search"
           @confirm="fetchList"
         />
@@ -23,7 +23,7 @@
     </view>
 
     <view class="result-bar">
-      <view class="result-text">共整理 {{ displayList.length }} 件闲置，支持点击进入详情页。</view>
+      <view class="result-text">当前共 {{ total }} 件在售商品，支持按时间和价格切换排序。</view>
       <view class="sort-actions">
         <view
           class="sort-action"
@@ -44,13 +44,13 @@
     </view>
 
     <view v-if="!displayList.length" class="app-empty app-card">
-      没有找到符合条件的商品，试试切换频道或换个关键词。
+      没有找到符合条件的商品，试试换一个关键词或稍后刷新。
     </view>
 
     <view v-else class="goods-grid">
       <view
-        v-for="(item) in displayList"
-        :key="item.id"
+        v-for="(item, index) in displayList"
+        :key="`${item.id}-${index}`"
         class="goods-card app-card"
         @click="goDetail(item.id)"
       >
@@ -67,6 +67,7 @@
           <view class="goods-tags">
             <text class="goods-tag">{{ item.categoryLabel }}</text>
             <text class="goods-tag">{{ item.conditionLabel }}</text>
+            <text class="goods-tag">{{ item.statusText }}</text>
           </view>
           <view class="goods-price-line">
             <view class="goods-price app-price">¥{{ item.priceText }}</view>
@@ -76,7 +77,7 @@
             <view class="user-dot"></view>
             <text class="goods-user">{{ item.sellerName }}</text>
             <text class="goods-sep">·</text>
-            <text class="goods-user">{{ item.campusArea }}</text>
+            <text class="goods-user">{{ item.publishedAtText }}</text>
           </view>
         </view>
       </view>
@@ -98,6 +99,7 @@ export default {
       keyword: '',
       sortMode: 'time-desc',
       list: [],
+      total: 0,
       goodsStore: useGoodsStore()
     }
   },
@@ -182,13 +184,14 @@ export default {
       })
 
       getGoodsList({
-        keyword: this.keyword,
+        keyword: this.keyword || undefined,
         pageNum: 1,
         pageSize: 20
       })
         .then((res) => {
           if (res && res.code === 0) {
             this.list = (res.data && res.data.records) || []
+            this.total = (res.data && res.data.total) || 0
             return
           }
           uni.showToast({ title: (res && res.message) || '商品加载失败', icon: 'none' })

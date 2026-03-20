@@ -42,8 +42,8 @@
 
       <view class="register-notes">
         <view class="note-chip">同校交易</view>
-        <view class="note-chip">黑白主题同步</view>
-        <view class="note-chip">本地草稿可继续使用</view>
+        <view class="note-chip">发布闲置</view>
+        <view class="note-chip">订单跟踪</view>
       </view>
 
       <button class="app-primary-btn register-btn" @click="handleRegister">完成注册</button>

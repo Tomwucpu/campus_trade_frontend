@@ -5,7 +5,9 @@
         <view class="profile-avatar">{{ profileInitial }}</view>
         <view class="profile-copy">
           <view class="profile-name">{{ displayName }}</view>
-          <view class="profile-meta">{{ isLoggedIn ? '已登录，可查看订单与发布草稿' : '未登录，建议先登录后再继续' }}</view>
+          <view class="profile-meta">
+            {{ isLoggedIn ? profileSummary : '未登录，建议先登录后再继续浏览和交易。' }}
+          </view>
         </view>
       </view>
 
@@ -26,14 +28,14 @@
             :class="{ active: theme === 'light' }"
             @click="changeTheme('light')"
           >
-            白描
+            浅墨
           </view>
           <view
             class="switch-opt"
             :class="{ active: theme === 'dark' }"
             @click="changeTheme('dark')"
           >
-            玄墨
+            夜墨
           </view>
         </view>
       </view>
@@ -44,13 +46,13 @@
       </view>
 
       <view class="menu-item" @click="go('/pages/goods/publish')">
-        <view class="menu-label">发布草稿</view>
-        <view class="menu-value">继续编辑闲置</view>
+        <view class="menu-label">发布商品</view>
+        <view class="menu-value">继续编辑并上架闲置</view>
       </view>
 
       <view class="menu-item" @click="toggleLoginAction">
         <view class="menu-label danger">{{ isLoggedIn ? '退出登录' : '前往登录' }}</view>
-        <view class="menu-value">{{ isLoggedIn ? '清除本地会话' : '进入登录页' }}</view>
+        <view class="menu-value">{{ isLoggedIn ? '清除当前会话' : '进入登录页' }}</view>
       </view>
     </view>
   </view>
@@ -61,13 +63,24 @@ import { getProfile } from '../../api/auth'
 import { useAuthStore } from '../../store/auth'
 import { setTheme, syncThemePage } from '../../utils/theme'
 
+function createEmptyProfile() {
+  return {
+    username: '',
+    phone: '',
+    studentNo: '',
+    onSaleCount: 0,
+    soldCount: 0,
+    orderCount: 0
+  }
+}
+
 export default {
   data() {
     return {
       theme: 'light',
       themeClass: '',
       authStore: useAuthStore(),
-      profile: {}
+      profile: createEmptyProfile()
     }
   },
   computed: {
@@ -80,12 +93,17 @@ export default {
     profileInitial() {
       return (this.displayName || '墨').slice(0, 1)
     },
+    profileSummary() {
+      const phone = this.profile.phone || '未填写手机号'
+      const studentNo = this.profile.studentNo || '未填写学号'
+      return `${phone} · ${studentNo}`
+    },
     stats() {
       return [
-        { label: '在售', value: this.isLoggedIn ? '12' : '--' },
-        { label: '已成交', value: this.isLoggedIn ? '5' : '--' },
-        { label: '收藏', value: this.isLoggedIn ? '8' : '--' },
-        { label: '信用', value: this.isLoggedIn ? '优' : '--' }
+        { label: '在售', value: this.isLoggedIn ? String(this.profile.onSaleCount || 0) : '--' },
+        { label: '已售', value: this.isLoggedIn ? String(this.profile.soldCount || 0) : '--' },
+        { label: '订单', value: this.isLoggedIn ? String(this.profile.orderCount || 0) : '--' },
+        { label: '身份', value: this.isLoggedIn ? '用户' : '--' }
       ]
     }
   },
@@ -99,7 +117,10 @@ export default {
   methods: {
     syncProfile() {
       this.authStore.sync()
-      this.profile = { ...this.authStore.profile }
+      this.profile = {
+        ...createEmptyProfile(),
+        ...this.authStore.profile
+      }
 
       if (!this.authStore.isLoggedIn()) {
         return
@@ -108,7 +129,7 @@ export default {
       getProfile()
         .then((res) => {
           if (res && res.code === 0) {
-            this.profile = res.data || {}
+            this.profile = { ...createEmptyProfile(), ...(res.data || {}) }
             this.authStore.setProfile(this.profile)
             return
           }
@@ -122,7 +143,7 @@ export default {
       this.theme = setTheme(nextTheme)
       this.themeClass = this.theme === 'dark' ? 'theme-dark' : 'theme-light'
       uni.showToast({
-        title: this.theme === 'dark' ? '已切换为玄墨主题' : '已切换为白描主题',
+        title: this.theme === 'dark' ? '已切换为夜墨主题' : '已切换为浅墨主题',
         icon: 'none'
       })
     },
@@ -133,7 +154,7 @@ export default {
       }
 
       this.authStore.logout()
-      this.profile = {}
+      this.profile = createEmptyProfile()
       uni.showToast({ title: '已退出登录', icon: 'none' })
       setTimeout(() => {
         uni.reLaunch({ url: '/pages/user/login' })

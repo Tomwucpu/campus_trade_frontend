@@ -60,8 +60,12 @@ const authStore = {
     return Boolean(this.token)
   },
 
+  getUserId() {
+    return this.profile.id || this.profile.userId || null
+  },
+
   getDisplayName() {
-    return this.profile.username || '墨友'
+    return this.profile.username || '同学'
   }
 }
 

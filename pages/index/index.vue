@@ -9,7 +9,7 @@
     </view>
 
     <view class="search-shell app-card">
-      <view class="search-mark">墨</view>
+      <view class="search-mark">寻</view>
       <input
         v-model="searchKeyword"
         class="search-input"
@@ -17,7 +17,7 @@
         confirm-type="search"
         @confirm="goSearch"
       />
-      <view class="search-trigger" @click="goSearch">寻物</view>
+      <view class="search-trigger" @click="goSearch">觅物</view>
     </view>
 
     <scroll-view scroll-x class="channel-scroll" show-scrollbar="false">
@@ -39,11 +39,11 @@
         <view class="hero-mark">墨痕慢市</view>
         <view class="hero-title">同校闲置，一笔一划都更安心</view>
         <view class="hero-text">
-          参考瀑布流灵感做成水墨版首页，保留搜索、列表、详情、订单和个人中心入口，黑白主题随时切换。
+          首页、列表、发布、订单和个人中心都已经接上真实接口，现在可以直接完成登录、发布、下单与订单流转。
         </view>
       </view>
       <view class="hero-side">
-        <view class="hero-stamp">荐</view>
+        <view class="hero-stamp">新</view>
         <view class="hero-action" @click="go('/pages/goods/list')">进入市集</view>
       </view>
       <view class="hero-splash splash-a"></view>
@@ -66,15 +66,15 @@
     <view class="app-section-head">
       <view>
         <view class="section-title">墨市推荐</view>
-        <view class="app-subtitle">双列卡片保留商品跳转能力，视觉上更接近你给的参考图节奏。</view>
+        <view class="app-subtitle">优先展示最近上架与当前在售的商品，点击卡片即可进入详情页。</view>
       </view>
       <view class="section-link" @click="go('/pages/goods/list')">全部好物</view>
     </view>
 
     <view class="feed-grid">
       <view
-        v-for="(item) in displayCards"
-        :key="item.cardKey"
+        v-for="(item, index) in displayCards"
+        :key="`${item.id}-${index}`"
         class="feed-card app-card"
         @click="openDetail(item.id)"
       >
@@ -91,7 +91,7 @@
           </view>
           <view class="feed-meta">
             <view class="feed-price app-price">¥{{ item.priceText }}</view>
-            <view class="feed-wish">{{ item.wishCount }} 人想要</view>
+            <view class="feed-wish">{{ item.glanceCount }} 浏览</view>
           </view>
           <view class="feed-user">
             <view class="avatar-dot"></view>
@@ -110,7 +110,7 @@
       </view>
       <view class="dock-item" @click="go('/pages/goods/list')">
         <text class="dock-icon">市</text>
-        <text class="dock-label">集市</text>
+        <text class="dock-label">市集</text>
       </view>
       <view class="dock-publish" @click="go('/pages/goods/publish')">
         <text class="dock-publish-icon">+</text>
@@ -131,14 +131,14 @@
 <script>
 import { getGoodsList } from '../../api/goods'
 import { useGoodsStore } from '../../store/goods'
-import { getCategoryOptions, normalizeGoodsItem } from '../../utils/market'
+import { getCategoryOptions, matchesGoodsTab, normalizeGoodsItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 const fallbackShowcase = [
-  { id: 201, title: '九成新机械键盘，宿舍静音轴', price: 168, categoryLabel: '数码' },
-  { id: 202, title: '考研数学全程笔记，划线清晰', price: 35, categoryLabel: '教材' },
-  { id: 203, title: '山地车头盔和夜骑灯一套', price: 88, categoryLabel: '代步' },
-  { id: 204, title: '宿舍咖啡壶和磨豆罐组合', price: 76, categoryLabel: '生活' }
+  { id: 201, title: '九成新机械键盘，宿舍静音轴', price: 168, categoryId: 1, categoryLabel: '数码电子' },
+  { id: 202, title: '考研数学全程笔记，划线清晰', price: 35, categoryId: 2, categoryLabel: '教材图书' },
+  { id: 203, title: '宿舍咖啡壶和磨豆器一套', price: 76, categoryId: 3, categoryLabel: '生活用品' },
+  { id: 204, title: '跑步护膝和筋膜枪打包出', price: 88, categoryId: 5, categoryLabel: '运动器材' }
 ]
 
 export default {
@@ -151,46 +151,21 @@ export default {
       remoteCards: [],
       goodsStore: useGoodsStore(),
       shortcuts: [
-        { icon: '榜', label: '热门榜单', desc: '看看大家都在捡什么漏', path: '/pages/goods/list', feedTab: 'recommend' },
-        { icon: '新', label: '最新发布', desc: '刚挂出的闲置更容易抢到', path: '/pages/goods/list', quickFilter: 'latest' },
-        { icon: '单', label: '我的订单', desc: '查看交易进度与记录', path: '/pages/order/list' },
-        { icon: '人', label: '个人中心', desc: '切主题、看资料、退出登录', path: '/pages/user/profile' }
+        { icon: '热', label: '热门逛逛', desc: '看看大家最近都在买什么', path: '/pages/goods/list', feedTab: 'recommend' },
+        { icon: '新', label: '最新发布', desc: '刚上架的闲置通常更容易成交', path: '/pages/goods/list', quickFilter: 'latest' },
+        { icon: '单', label: '我的订单', desc: '查看交易状态并处理订单动作', path: '/pages/order/list' },
+        { icon: '我', label: '个人中心', desc: '切换主题、查看资料和统计信息', path: '/pages/user/profile' }
       ]
     }
   },
   computed: {
     feedTabs() {
-      return getCategoryOptions().filter((item) => item.value !== 'all')
+      return getCategoryOptions()
     },
     displayCards() {
       const source = this.remoteCards.length ? this.remoteCards : fallbackShowcase
-      const cards = source
-        .map((item, index) => normalizeGoodsItem(item, index))
-        .map((item, index) => ({
-          ...item,
-          cardKey: `${item.id}-${index}`
-        }))
-
-      if (this.activeFeedTab === 'recommend') {
-        return cards
-      }
-
-      const filtered = cards.filter((item) => {
-        if (this.activeFeedTab === 'new') {
-          return indexGuard(item.publishedAtText)
-        }
-        if (this.activeFeedTab === 'books') {
-          return item.categoryLabel === '教材'
-        }
-        if (this.activeFeedTab === 'digital') {
-          return item.categoryLabel === '数码'
-        }
-        if (this.activeFeedTab === 'life') {
-          return item.categoryLabel === '生活'
-        }
-        return true
-      })
-
+      const cards = source.map((item, index) => normalizeGoodsItem(item, index))
+      const filtered = cards.filter((item) => matchesGoodsTab(item, this.activeFeedTab))
       return filtered.length ? filtered : cards
     }
   },
@@ -251,10 +226,6 @@ export default {
       uni.navigateTo({ url })
     }
   }
-}
-
-function indexGuard(text) {
-  return typeof text === 'string' && text.includes('小时')
 }
 </script>
 
