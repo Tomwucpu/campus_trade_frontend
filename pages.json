@@ -3,7 +3,7 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "校园二手"
+        "navigationBarTitleText": "水墨集市"
       }
     },
     {
@@ -46,7 +46,7 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "校园二手交易平台",
-    "navigationBarBackgroundColor": "#f4f3ee",
-    "backgroundColor": "#f4f3ee"
+    "navigationBarBackgroundColor": "#f5f1e8",
+    "backgroundColor": "#f5f1e8"
   }
 }

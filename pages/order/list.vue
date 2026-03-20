@@ -1,37 +1,57 @@
 <template>
-  <view class="app-page" :class="themeClass">
-    <view class="app-page-header">
-       <view class="big-title">交易记录</view>
-       <button class="app-secondary-btn sm" @click="fetchList">刷新</button>
+  <view class="app-page order-page" :class="themeClass">
+    <view class="order-header app-card">
+      <view class="order-head-top">
+        <view>
+          <view class="order-kicker">Order Chronicle</view>
+          <view class="order-title">交易记录</view>
+        </view>
+        <view class="refresh-chip" @click="fetchList">刷新</view>
+      </view>
+
+      <view class="status-row">
+        <view
+          v-for="item in statusOptions"
+          :key="item.value"
+          class="status-chip"
+          :class="{ active: status === item.value }"
+          @click="setStatus(item.value)"
+        >
+          {{ item.label }}
+        </view>
+      </view>
     </view>
 
-    <view v-if="!list.length" class="app-empty">暂无相关订单</view>
+    <view v-if="!displayList.length" class="app-empty app-card">
+      目前没有符合条件的订单记录，去首页逛逛新的闲置也不错。
+    </view>
 
-    <view v-for="item in list" :key="item.id" class="order-card app-card">
-      <view class="card-head border-bottom">
-        <view class="shop-info">
-          <text class="shop-icon">🛒</text>
-          <text class="shop-name">商品订单</text>
+    <view v-else class="order-list">
+      <view
+        v-for="item in displayList"
+        :key="item.id"
+        class="order-card app-card"
+        :class="{ focus: String(item.id) === String(currentOrderId) }"
+      >
+        <view class="order-card-top">
+          <view>
+            <view class="order-no">{{ item.orderNo }}</view>
+            <view class="order-goods">{{ item.goodsTitle }}</view>
+          </view>
+          <view class="status-pill" :class="item.statusTone">{{ item.statusText }}</view>
         </view>
-        <view class="order-status">{{ item.status }}</view>
-      </view>
-      
-      <view class="card-body">
-        <view class="goods-thumb"></view>
-        <view class="goods-info">
-          <view class="g-title">订单编号: {{ item.orderNo }}</view>
-          <view class="g-desc">本订单的所有权归属当前登录用户，请确保在校园内进行安全交易。</view>
-        </view>
-      </view>
 
-      <view class="card-foot">
-        <view class="total-price">
-          <text class="label">实付款</text>
-          <text class="app-price">￥{{ item.totalAmount }}</text>
-        </view>
-        <view class="actions">
-          <button class="act-btn">联系卖家</button>
-          <button class="act-btn primary">确认收货</button>
+        <view class="order-summary">{{ item.summary }}</view>
+
+        <view class="order-card-bottom">
+          <view>
+            <view class="order-seller">卖家：{{ item.sellerName }}</view>
+            <view class="order-price app-price">¥{{ item.totalAmountText }}</view>
+          </view>
+          <view class="order-actions">
+            <view class="action-ghost" @click="goGoodsList">继续逛</view>
+            <view class="action-solid" @click="contactSeller">联系卖家</view>
+          </view>
         </view>
       </view>
     </view>
@@ -40,162 +60,249 @@
 
 <script>
 import { getOrderList } from '../../api/order'
-import { getTheme, resolveThemeClass, applyNavigationTheme } from '../../utils/theme'
+import { useOrderStore } from '../../store/order'
+import { normalizeOrderItem } from '../../utils/market'
+import { syncThemePage } from '../../utils/theme'
 
 export default {
   data() {
     return {
+      theme: 'light',
+      themeClass: '',
       list: [],
-      themeClass: resolveThemeClass(getTheme())
+      status: 'all',
+      currentOrderId: null,
+      orderStore: useOrderStore(),
+      statusOptions: [
+        { value: 'all', label: '全部' },
+        { value: 'PENDING_PAYMENT', label: '待付款' },
+        { value: 'PENDING_RECEIPT', label: '待收货' },
+        { value: 'COMPLETED', label: '已完成' }
+      ]
     }
   },
-  onShow() {
-    this.syncTheme()
+  computed: {
+    displayList() {
+      const orders = this.list.map((item, index) => normalizeOrderItem(item, index))
+      if (this.status === 'all') {
+        return orders
+      }
+      return orders.filter((item) => item.status === this.status)
+    }
   },
   onLoad() {
+    this.syncPageState()
     this.fetchList()
   },
+  onShow() {
+    this.syncPageState()
+  },
   methods: {
-    syncTheme() {
-      const theme = getTheme()
-      this.themeClass = resolveThemeClass(theme)
-      applyNavigationTheme(theme)
+    syncPageState() {
+      syncThemePage(this)
+      const store = this.orderStore.sync()
+      this.status = store.status || 'all'
+      this.currentOrderId = store.currentOrderId
+    },
+    setStatus(value) {
+      this.status = value
+      this.orderStore.setStatus(value)
     },
     fetchList() {
-      getOrderList({ pageNum: 1, pageSize: 10 }).then((res) => {
-        if (res && res.code === 0) {
-          this.list = (res.data && res.data.records) || []
-          return
-        }
-        uni.showToast({ title: (res && res.message) || '加载失败', icon: 'none' })
-      }).catch(() => {
-        uni.showToast({ title: '加载失败', icon: 'none' })
-      })
+      getOrderList({ pageNum: 1, pageSize: 20 })
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.list = (res.data && res.data.records) || []
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '订单加载失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '订单加载失败', icon: 'none' })
+        })
+    },
+    goGoodsList() {
+      uni.navigateTo({ url: '/pages/goods/list' })
+    },
+    contactSeller() {
+      uni.showToast({ title: '当前为演示流程，可线下面交沟通', icon: 'none' })
     }
   }
 }
 </script>
 
 <style scoped>
-.app-page-header {
-  padding: 20rpx 10rpx;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.order-page {
+  padding-bottom: 40rpx;
+}
+
+.order-header {
+  padding: 28rpx;
   margin-bottom: 20rpx;
 }
 
-.big-title {
-  font-size: 34rpx;
-  font-weight: 800;
-  color: var(--ink-text);
-}
-
-.sm {
-  font-size: 24rpx;
-  padding: 8rpx 20rpx;
-  min-width: auto;
-}
-
-.order-card {
-  margin-bottom: 20rpx;
-  padding: 0;
-  overflow: hidden;
-}
-
-.card-head {
-  padding: 20rpx 24rpx;
+.order-head-top {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
+  margin-bottom: 24rpx;
 }
 
-.border-bottom {
-  border-bottom: 1rpx solid var(--ink-border);
-}
-
-.shop-info {
-  display: flex;
-  align-items: center;
-  font-weight: 700;
-  font-size: 26rpx;
-  color: var(--ink-text);
-}
-
-.shop-icon {
-  margin-right: 10rpx;
-  font-size: 30rpx;
-}
-
-.order-status {
-  font-size: 26rpx;
-  color: var(--ink-accent);
-}
-
-.card-body {
-  padding: 24rpx;
-  display: flex;
-  gap: 20rpx;
-}
-
-.goods-thumb {
-  width: 120rpx;
-  height: 120rpx;
-  background: var(--ink-surface-alt);
-  border-radius: 8rpx;
-}
-
-.goods-info {
-  flex: 1;
-}
-
-.g-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--ink-text);
+.order-kicker {
+  font-size: 20rpx;
+  letter-spacing: 5rpx;
+  text-transform: uppercase;
+  color: var(--ink-subtext);
   margin-bottom: 8rpx;
 }
 
-.g-desc {
-  font-size: 22rpx;
-  color: var(--ink-subtext);
-  line-height: 1.4;
+.order-title {
+  font-family: var(--ink-font-title);
+  font-size: 52rpx;
+  color: var(--ink-text);
 }
 
-.card-foot {
-  padding: 20rpx 24rpx;
+.refresh-chip {
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--ink-border-strong);
+  font-size: 23rpx;
+  color: var(--ink-text);
+}
+
+.status-row {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.status-chip {
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--ink-border);
+  background: var(--ink-tag-bg);
+  color: var(--ink-subtext);
+  font-size: 22rpx;
+}
+
+.status-chip.active {
+  background: var(--ink-accent);
+  border-color: var(--ink-accent);
+  color: var(--ink-tag-active-text);
+}
+
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.order-card {
+  padding: 26rpx;
+}
+
+.order-card.focus {
+  border-color: var(--ink-border-strong);
+  box-shadow: 0 24rpx 60rpx rgba(110, 88, 34, 0.12);
+}
+
+.theme-dark .order-card.focus {
+  box-shadow: 0 24rpx 60rpx rgba(0, 0, 0, 0.24);
+}
+
+.order-card-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  background: var(--ink-bg); /* slightly different if needed, else inherit */
+  gap: 20rpx;
+  margin-bottom: 16rpx;
 }
 
-.total-price .label {
-  font-size: 24rpx;
+.order-no {
+  font-size: 22rpx;
   color: var(--ink-subtext);
-  margin-right: 8rpx;
+  margin-bottom: 10rpx;
 }
 
-.actions {
+.order-goods {
+  font-size: 32rpx;
+  line-height: 1.45;
+  color: var(--ink-text);
+}
+
+.status-pill {
+  align-self: flex-start;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+}
+
+.status-pill.pending {
+  background: rgba(201, 154, 68, 0.14);
+  color: #a16a12;
+}
+
+.status-pill.active {
+  background: rgba(54, 102, 168, 0.14);
+  color: #365b96;
+}
+
+.status-pill.done {
+  background: rgba(51, 120, 86, 0.14);
+  color: #2f6d50;
+}
+
+.status-pill.muted {
+  background: var(--ink-tag-bg);
+  color: var(--ink-subtext);
+}
+
+.order-summary {
+  font-size: 23rpx;
+  line-height: 1.8;
+  color: var(--ink-subtext);
+  margin-bottom: 20rpx;
+}
+
+.order-card-bottom {
   display: flex;
-  gap: 16rpx;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20rpx;
 }
 
-.act-btn {
-  margin: 0;
-  background: transparent;
+.order-seller {
+  font-size: 22rpx;
+  color: var(--ink-subtext);
+  margin-bottom: 8rpx;
+}
+
+.order-price {
+  font-size: 40rpx;
+}
+
+.order-actions {
+  display: flex;
+  gap: 12rpx;
+}
+
+.action-ghost,
+.action-solid {
+  min-width: 110rpx;
+  height: 64rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 23rpx;
+}
+
+.action-ghost {
   border: 1rpx solid var(--ink-border);
   color: var(--ink-text);
-  font-size: 24rpx;
-  border-radius: 28rpx;
-  padding: 0 24rpx;
-  height: 52rpx;
-  line-height: 50rpx;
 }
 
-.act-btn.primary {
-  border-color: var(--ink-text);
-  color: var(--ink-text);
-  font-weight: 600;
+.action-solid {
+  background: var(--ink-accent);
+  color: var(--ink-tag-active-text);
 }
 </style>

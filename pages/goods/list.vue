@@ -1,113 +1,207 @@
 <template>
   <view class="app-page list-page" :class="themeClass">
-    <!-- 固定顶部搜索区 -->
-    <view class="sticky-header app-card">
+    <view class="list-hero app-card">
+      <view class="list-hero-top">
+        <view>
+          <view class="list-kicker">Ink Market Feed</view>
+          <view class="list-title">市集长卷</view>
+        </view>
+        <view class="hero-refresh" @click="fetchList">重载</view>
+      </view>
+
       <view class="search-box">
+        <view class="search-mark">寻</view>
         <input
           v-model="keyword"
-          placeholder="搜一搜商品..."
-          class="nav-input"
+          class="search-input"
+          placeholder="输入关键词，找书、找数码、找生活小物"
           confirm-type="search"
           @confirm="fetchList"
         />
-        <text class="search-btn-text" @click="fetchList">搜索</text>
+        <view class="search-submit" @click="fetchList">搜索</view>
       </view>
-      <!-- 筛选Tab -->
-      <view class="filter-tabs">
-        <view class="tab-item" :class="{ active: quickFilter === 'all' }" @click="setFilter('all')">综合</view>
-        <view class="tab-item" :class="{ active: quickFilter === 'latest' }" @click="setFilter('latest')">最新发布</view>
-        <view class="tab-item" :class="{ active: quickFilter === 'cheap' }" @click="setFilter('cheap')">价格最低</view>
+
+      <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
+        <view class="category-row">
+          <view
+            v-for="item in categoryOptions"
+            :key="item.value"
+            class="app-chip outline"
+            :class="{ active: categoryId === item.value }"
+            @click="setCategory(item.value)"
+          >
+            {{ item.label }}
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="filter-row">
+        <view
+          v-for="item in sortOptions"
+          :key="item.value"
+          class="filter-tab"
+          :class="{ active: quickFilter === item.value }"
+          @click="setQuickFilter(item.value)"
+        >
+          {{ item.label }}
+        </view>
       </view>
     </view>
 
-    <!-- 商品列表 - 双列布局 -->
-    <scroll-view scroll-y class="goods-container">
-      <view v-if="!displayList.length" class="empty-state">
-        <text>暂无相关宝贝</text>
-      </view>
+    <view class="result-bar">
+      <view class="result-text">共整理 {{ displayList.length }} 件闲置，支持点击进入详情页。</view>
+      <view class="result-reset" @click="resetFilters">重置筛选</view>
+    </view>
 
-      <view class="goods-grid">
-        <view v-for="(item, index) in displayList" :key="item.id" class="grid-item app-card" @click="goDetail(item.id)">
-          <!-- 模拟图片 -->
-          <view class="item-pic" :class="{ odd: index % 2 !== 0 }">
-            <text class="pic-tag">实拍</text>
+    <view v-if="!displayList.length" class="app-empty app-card">
+      没有找到符合条件的商品，试试切换频道或换个关键词。
+    </view>
+
+    <view v-else class="goods-grid">
+      <view
+        v-for="(item, index) in displayList"
+        :key="item.id"
+        class="goods-card app-card"
+        @click="goDetail(item.id)"
+      >
+        <view class="goods-cover" :class="item.coverStyle">
+          <view class="goods-cover-wash"></view>
+          <view class="goods-stamp">{{ item.stampText }}</view>
+          <view class="goods-cover-bottom">
+            <text class="goods-cover-title">{{ item.title }}</text>
           </view>
-          
-          <view class="item-content">
-            <view class="item-title">{{ item.title }}</view>
-            <view class="item-tags">
-              <text class="tag">自提</text>
-              <text class="tag outline">可小刀</text>
-            </view>
-            <view class="item-footer">
-              <view class="price-row app-price">
-                <text class="symbol">￥</text>{{ item.price }}
-              </view>
-              <view class="item-user">
-                <view class="user-avatar-small"></view>
-                <text class="user-name">同学{{ index + 1 }}</text>
-              </view>
-            </view>
+        </view>
+
+        <view class="goods-body">
+          <view class="goods-title">{{ item.title }}</view>
+          <view class="goods-tags">
+            <text class="goods-tag">{{ item.categoryLabel }}</text>
+            <text class="goods-tag">{{ item.conditionLabel }}</text>
+          </view>
+          <view class="goods-price-line">
+            <view class="goods-price app-price">¥{{ item.priceText }}</view>
+            <view class="goods-view">{{ item.glanceCount }} 浏览</view>
+          </view>
+          <view class="goods-user-line">
+            <view class="user-dot"></view>
+            <text class="goods-user">{{ item.sellerName }}</text>
+            <text class="goods-sep">·</text>
+            <text class="goods-user">{{ item.campusArea }}</text>
           </view>
         </view>
       </view>
-    </scroll-view>
+    </view>
   </view>
 </template>
 
 <script>
 import { getGoodsList } from '../../api/goods'
-import { getTheme, resolveThemeClass, applyNavigationTheme } from '../../utils/theme'
+import { useGoodsStore } from '../../store/goods'
+import { getCategoryOptions, normalizeGoodsItem } from '../../utils/market'
+import { syncThemePage } from '../../utils/theme'
 
 export default {
   data() {
     return {
+      theme: 'light',
+      themeClass: '',
       keyword: '',
       quickFilter: 'all',
+      categoryId: 'all',
       list: [],
-      themeClass: resolveThemeClass(getTheme())
+      goodsStore: useGoodsStore(),
+      sortOptions: [
+        { value: 'all', label: '综合' },
+        { value: 'latest', label: '最新发布' },
+        { value: 'cheap', label: '价格友好' }
+      ]
     }
   },
   computed: {
+    categoryOptions() {
+      return getCategoryOptions()
+    },
     displayList() {
-      const data = [...this.list]
+      let cards = this.list.map((item, index) => normalizeGoodsItem(item, index))
+
+      if (this.categoryId !== 'all') {
+        const filtered = cards.filter((item) => {
+          const categoryMap = {
+            recommend: true,
+            new: item.publishedAtText.includes('小时'),
+            books: item.categoryLabel === '教材',
+            digital: item.categoryLabel === '数码',
+            life: item.categoryLabel === '生活'
+          }
+          return categoryMap[this.categoryId]
+        })
+
+        cards = filtered.length ? filtered : cards
+      }
+
       if (this.quickFilter === 'cheap') {
-        return data.sort((a, b) => Number(a.price || 0) - Number(b.price || 0))
+        cards = cards.slice().sort((a, b) => Number(a.priceText) - Number(b.priceText))
+      } else if (this.quickFilter === 'latest') {
+        cards = cards.slice().reverse()
       }
-      if (this.quickFilter === 'latest') {
-        return data.reverse()
-      }
-      return data
+
+      return cards
     }
   },
-  onShow() {
-    this.syncTheme()
-  },
   onLoad() {
+    this.syncPageState()
     this.fetchList()
   },
+  onShow() {
+    this.syncPageState()
+  },
   methods: {
-    syncTheme() {
-      const theme = getTheme()
-      this.themeClass = resolveThemeClass(theme)
-      applyNavigationTheme(theme)
+    syncPageState() {
+      syncThemePage(this)
+      const store = this.goodsStore.sync()
+      this.keyword = store.keyword
+      this.quickFilter = store.quickFilter || 'all'
+      this.categoryId = store.categoryId || 'all'
     },
-    setFilter(type) {
-      this.quickFilter = type
+    setCategory(value) {
+      this.categoryId = value
+      this.goodsStore.setCategoryId(value)
+    },
+    setQuickFilter(value) {
+      this.quickFilter = value
+      this.goodsStore.setQuickFilter(value)
+    },
+    resetFilters() {
+      this.goodsStore.resetFilters()
+      this.syncPageState()
+      this.fetchList()
     },
     fetchList() {
-      getGoodsList({ keyword: this.keyword, pageNum: 1, pageSize: 10 }).then((res) => {
-        if (res && res.code === 0) {
-          this.list = (res.data && res.data.records) || []
-          return
-        }
-        uni.showToast({ title: (res && res.message) || '加载失败', icon: 'none' })
-      }).catch(() => {
-        uni.showToast({ title: '加载失败', icon: 'none' })
+      this.goodsStore.applyListQuery({
+        keyword: this.keyword,
+        quickFilter: this.quickFilter,
+        categoryId: this.categoryId
       })
+
+      getGoodsList({
+        keyword: this.keyword,
+        pageNum: 1,
+        pageSize: 20
+      })
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.list = (res.data && res.data.records) || []
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '商品加载失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '商品加载失败', icon: 'none' })
+        })
     },
     goDetail(id) {
-      uni.navigateTo({ url: '/pages/goods/detail?id=' + id })
+      this.goodsStore.setLastViewedId(id)
+      uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
     }
   }
 }
@@ -115,190 +209,275 @@ export default {
 
 <style scoped>
 .list-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  box-sizing: border-box;
+  padding-bottom: 40rpx;
 }
 
-.sticky-header {
-  padding: 20rpx 24rpx 0;
-  z-index: 10;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
+.list-hero {
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.list-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 26rpx;
+}
+
+.list-kicker {
+  font-size: 20rpx;
+  letter-spacing: 5rpx;
+  text-transform: uppercase;
+  color: var(--ink-subtext);
+  margin-bottom: 8rpx;
+}
+
+.list-title {
+  font-family: var(--ink-font-title);
+  font-size: 52rpx;
+  color: var(--ink-text);
+}
+
+.hero-refresh {
+  padding: 16rpx 26rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--ink-border-strong);
+  font-size: 24rpx;
+  color: var(--ink-text);
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  background: var(--ink-bg);
-  padding: 12rpx 20rpx;
-  border-radius: 36rpx;
-  margin-bottom: 20rpx;
+  gap: 18rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 999rpx;
+  background: var(--ink-surface-strong);
   border: 1rpx solid var(--ink-border);
+  margin-bottom: 22rpx;
 }
 
-.nav-input {
-  flex: 1;
-  font-size: 28rpx;
-  color: var(--ink-text);
-}
-
-.search-btn-text {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--ink-text);
-  padding-left: 20rpx;
-}
-
-.filter-tabs {
+.search-mark {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: var(--ink-accent-soft);
   display: flex;
-  justify-content: space-around;
-  padding-bottom: 20rpx;
-}
-
-.tab-item {
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ink-font-title);
   font-size: 28rpx;
-  color: var(--ink-subtext);
-  padding: 10rpx 0;
-  position: relative;
 }
 
-.tab-item.active {
-  color: var(--ink-text);
-  font-weight: 700;
-}
-
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 30rpx;
-  height: 4rpx;
-  background: var(--ink-text);
-  border-radius: 2rpx;
-}
-
-.goods-container {
+.search-input {
   flex: 1;
-  padding: 20rpx;
+  height: 68rpx;
+  font-size: 28rpx;
+  color: var(--ink-text);
+}
+
+.search-submit {
+  min-width: 120rpx;
+  height: 66rpx;
+  border-radius: 999rpx;
+  background: var(--ink-accent);
+  color: var(--ink-tag-active-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.category-scroll {
+  width: 100%;
+  white-space: nowrap;
+  margin-bottom: 18rpx;
+}
+
+.category-row {
+  display: inline-flex;
+  gap: 12rpx;
+  padding-right: 32rpx;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.filter-tab {
+  flex: 1;
+  height: 66rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--ink-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-subtext);
+  font-size: 25rpx;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.filter-tab.active {
+  background: var(--ink-accent);
+  color: var(--ink-tag-active-text);
+  border-color: var(--ink-accent);
+}
+
+.result-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+  color: var(--ink-subtext);
+}
+
+.result-text {
+  flex: 1;
+  font-size: 23rpx;
+  line-height: 1.7;
+}
+
+.result-reset {
+  font-size: 24rpx;
+  color: var(--ink-text);
 }
 
 .goods-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
-  padding-bottom: 40rpx;
+  gap: 18rpx;
 }
 
-.grid-item {
-  border-radius: 16rpx;
+.goods-card {
   overflow: hidden;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
 }
 
-.item-pic {
-  width: 100%;
-  height: 300rpx;
-  background: var(--ink-surface-alt);
+.goods-cover {
+  height: 240rpx;
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 10rpx;
-}
-.item-pic.odd {
-  background: var(--ink-border); /* 略微区别颜色 fake image */
-  opacity: 0.3;
-}
-
-.pic-tag {
-  font-size: 20rpx;
-  background: rgba(0,0,0,0.5);
-  color: #fff;
-  padding: 2rpx 8rpx;
-  border-radius: 4rpx;
-}
-
-.item-content {
-  padding: 16rpx;
-  flex: 1;
+  padding: 20rpx;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
-.item-title {
-  font-size: 28rpx;
+.goods-cover-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22) 0, transparent 24%),
+    radial-gradient(circle at 82% 36%, rgba(255, 255, 255, 0.18) 0, transparent 24%),
+    linear-gradient(140deg, rgba(255, 255, 255, 0.1) 0, transparent 32%);
+}
+
+.tone-0 {
+  background: linear-gradient(160deg, #28251f 0%, #4b4337 56%, #847764 100%);
+}
+
+.tone-1 {
+  background: linear-gradient(160deg, #3e372c 0%, #79614a 56%, #bb9a74 100%);
+}
+
+.tone-2 {
+  background: linear-gradient(160deg, #1c1c1c 0%, #4a4a4a 56%, #818181 100%);
+}
+
+.tone-3 {
+  background: linear-gradient(160deg, #2a2019 0%, #614636 56%, #a97b5e 100%);
+}
+
+.tone-4 {
+  background: linear-gradient(160deg, #303030 0%, #5b5245 56%, #999083 100%);
+}
+
+.goods-stamp,
+.goods-cover-bottom {
+  position: relative;
+  z-index: 1;
+}
+
+.goods-stamp {
+  align-self: flex-start;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(250, 226, 120, 0.95);
+  color: #2e2618;
+  font-size: 20rpx;
   font-weight: 700;
-  color: var(--ink-text);
-  line-height: 1.4;
-  margin-bottom: 12rpx;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-.item-tags {
+.goods-cover-bottom {
+  color: #ffffff;
+}
+
+.goods-cover-title {
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.goods-body {
+  padding: 20rpx;
+}
+
+.goods-title {
+  font-size: 28rpx;
+  line-height: 1.45;
+  min-height: 82rpx;
+  color: var(--ink-text);
+  margin-bottom: 14rpx;
+}
+
+.goods-tags {
   display: flex;
   gap: 8rpx;
-  margin-bottom: 16rpx;
+  flex-wrap: wrap;
+  margin-bottom: 14rpx;
 }
 
-.tag {
-  font-size: 20rpx;
-  padding: 2rpx 8rpx;
+.goods-tag {
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
   background: var(--ink-tag-bg);
   color: var(--ink-subtext);
-  border-radius: 4rpx;
+  font-size: 20rpx;
 }
 
-.item-footer {
-  margin-top: auto;
+.goods-price-line {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  margin-bottom: 14rpx;
 }
 
-.price-row {
-  font-size: 34rpx;
-  font-weight: 700;
-  display: flex;
-  align-items: baseline;
-}
-.symbol {
-  font-size: 24rpx;
+.goods-price {
+  font-size: 38rpx;
 }
 
-.item-user {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-}
-
-.user-avatar-small {
-  width: 30rpx;
-  height: 30rpx;
-  border-radius: 50%;
-  background: var(--ink-border);
-}
-
-.user-name {
+.goods-view {
   font-size: 20rpx;
   color: var(--ink-subtext);
-  max-width: 80rpx;
-  overflow: hidden;
-  white-space: nowrap;
 }
 
-.empty-state {
-  text-align: center;
+.goods-user-line {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   color: var(--ink-subtext);
-  margin-top: 100rpx;
-  font-size: 28rpx;
+  font-size: 20rpx;
+}
+
+.user-dot {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: var(--ink-border-strong);
+}
+
+.goods-sep {
+  opacity: 0.4;
 }
 </style>

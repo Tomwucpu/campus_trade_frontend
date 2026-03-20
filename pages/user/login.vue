@@ -1,28 +1,41 @@
 <template>
   <view class="app-page login-page" :class="themeClass">
-    <view class="bg-shape"></view>
-    
-    <view class="intro-area">
-      <view class="brand">水墨集市</view>
-      <view class="slogan">校园闲置，一键流转</view>
+    <view class="login-copy">
+      <view class="login-kicker">Ink Access</view>
+      <view class="login-brand">水墨集市</view>
+      <view class="login-text">
+        保留现有登录接口，把视觉切成更克制的黑白笔墨风。登录后可继续浏览商品、查看订单和恢复发布草稿。
+      </view>
     </view>
 
-    <view class="login-form app-card">
-      <view class="form-title">账号登录</view>
-      
-      <view class="input-group">
-        <input v-model="form.username" placeholder="请输入用户名" class="clean-input" />
-      </view>
-      <view class="input-group">
-        <input v-model="form.password" password placeholder="请输入密码" class="clean-input" />
+    <view class="login-card app-card">
+      <view class="login-card-title">账号登录</view>
+
+      <view class="input-block">
+        <view class="input-label">用户名</view>
+        <input
+          v-model="form.username"
+          class="app-input"
+          placeholder="输入用户名"
+        />
       </view>
 
-      <button class="login-btn-large" @click="handleLogin">登 录</button>
-      
-      <view class="form-footer">
-        <text>注册账号</text>
-        <text class="divider">|</text>
-        <text>忘记密码</text>
+      <view class="input-block">
+        <view class="input-label">密码</view>
+        <input
+          v-model="form.password"
+          class="app-input"
+          password
+          placeholder="输入密码"
+        />
+      </view>
+
+      <button class="app-primary-btn login-btn" @click="handleLogin">进入集市</button>
+
+      <view class="login-footer">
+        <text>当前项目保留演示登录能力</text>
+        <text class="login-divider">·</text>
+        <text>成功后自动回到首页</text>
       </view>
     </view>
   </view>
@@ -30,43 +43,55 @@
 
 <script>
 import { login } from '../../api/auth'
-import { getTheme, resolveThemeClass, applyNavigationTheme } from '../../utils/theme'
+import { useAuthStore } from '../../store/auth'
+import { syncThemePage } from '../../utils/theme'
 
 export default {
   data() {
     return {
+      theme: 'light',
+      themeClass: '',
+      authStore: useAuthStore(),
       form: {
         username: '',
         password: ''
-      },
-      themeClass: resolveThemeClass(getTheme())
+      }
     }
   },
+  onLoad() {
+    syncThemePage(this)
+  },
   onShow() {
-    this.syncTheme()
+    syncThemePage(this)
   },
   methods: {
-    syncTheme() {
-      const theme = getTheme()
-      this.themeClass = resolveThemeClass(theme)
-      applyNavigationTheme(theme)
-    },
     handleLogin() {
       if (!this.form.username || !this.form.password) {
-        uni.showToast({ title: '请输入账号密码', icon: 'none' })
+        uni.showToast({ title: '请输入账号和密码', icon: 'none' })
         return
       }
-      login(this.form).then((res) => {
-        if (res && res.code === 0 && res.data && res.data.token) {
-          uni.setStorageSync('token', res.data.token)
-          uni.showToast({ title: '登录成功' })
-          uni.reLaunch({ url: '/pages/index/index' })
-          return
-        }
-        uni.showToast({ title: (res && res.message) || '登录失败', icon: 'none' })
-      }).catch(() => {
-        uni.showToast({ title: '登录失败', icon: 'none' })
-      })
+
+      login(this.form)
+        .then((res) => {
+          if (res && res.code === 0 && res.data && res.data.token) {
+            this.authStore.setSession({
+              token: res.data.token,
+              profile: {
+                username: res.data.username || this.form.username
+              }
+            })
+            uni.showToast({ title: '登录成功', icon: 'success' })
+            setTimeout(() => {
+              uni.reLaunch({ url: '/pages/index/index' })
+            }, 300)
+            return
+          }
+
+          uni.showToast({ title: (res && res.message) || '登录失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '登录失败', icon: 'none' })
+        })
     }
   }
 }
@@ -74,85 +99,78 @@ export default {
 
 <style scoped>
 .login-page {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 60rpx;
+  padding: 48rpx;
+}
+
+.login-copy {
+  margin-bottom: 42rpx;
   position: relative;
-  overflow: hidden;
-  height: 100vh;
-  box-sizing: border-box;
+  z-index: 1;
 }
 
-.intro-area {
-  margin-bottom: 60rpx;
-  z-index: 2;
-}
-
-.brand {
-  font-size: 60rpx;
-  font-weight: 800;
-  color: var(--ink-text);
+.login-kicker {
+  font-size: 20rpx;
+  letter-spacing: 6rpx;
+  text-transform: uppercase;
+  color: var(--ink-subtext);
   margin-bottom: 10rpx;
 }
 
-.slogan {
-  font-size: 28rpx;
+.login-brand {
+  font-family: var(--ink-font-title);
+  font-size: 66rpx;
+  color: var(--ink-text);
+  margin-bottom: 18rpx;
+}
+
+.login-text {
+  max-width: 560rpx;
+  font-size: 25rpx;
+  line-height: 1.9;
   color: var(--ink-subtext);
-  letter-spacing: 4rpx;
 }
 
-.login-form {
-  padding: 50rpx 40rpx;
-  z-index: 2;
-  border-radius: 30rpx;
+.login-card {
+  padding: 36rpx 34rpx;
 }
 
-.form-title {
+.login-card-title {
   font-size: 34rpx;
   font-weight: 700;
-  margin-bottom: 40rpx;
   color: var(--ink-text);
+  margin-bottom: 28rpx;
 }
 
-.input-group {
-  margin-bottom: 30rpx;
-  border-bottom: 1rpx solid var(--ink-border);
-  padding-bottom: 10rpx;
+.input-block {
+  margin-bottom: 24rpx;
 }
 
-.clean-input {
-  font-size: 30rpx;
-  color: var(--ink-text);
-  height: 60rpx;
-}
-
-.login-btn-large {
-  margin-top: 50rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  background: var(--ink-text);
-  color: var(--ink-bg);
-  border-radius: 44rpx;
-  font-size: 32rpx;
-  font-weight: 700;
-}
-
-.login-btn-large:active {
-  opacity: 0.9;
-  transform: scale(0.98);
-}
-
-.form-footer {
-  margin-top: 30rpx;
-  display: flex;
-  justify-content: center;
-  font-size: 24rpx;
+.input-label {
+  font-size: 23rpx;
   color: var(--ink-subtext);
+  margin-bottom: 12rpx;
 }
 
-.divider {
-  margin: 0 20rpx;
-  opacity: 0.3;
+.login-btn {
+  width: 100%;
+  margin-top: 12rpx;
+}
+
+.login-footer {
+  margin-top: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-subtext);
+  font-size: 22rpx;
+}
+
+.login-divider {
+  margin: 0 10rpx;
+  opacity: 0.5;
 }
 </style>

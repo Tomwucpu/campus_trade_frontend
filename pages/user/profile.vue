@@ -1,172 +1,226 @@
 <template>
-  <view class="app-page" :class="themeClass">
-    <!-- 用户信息头部 -->
-    <view class="user-header">
-      <view class="avatar-area">
-        <view class="avatar-circle"></view>
-        <view class="user-info">
-          <view class="nickname">用户_水墨客</view>
-          <view class="user-tag">信用极好</view>
+  <view class="app-page profile-page" :class="themeClass">
+    <view class="profile-hero app-card">
+      <view class="profile-top">
+        <view class="profile-avatar">{{ profileInitial }}</view>
+        <view class="profile-copy">
+          <view class="profile-name">{{ displayName }}</view>
+          <view class="profile-meta">{{ isLoggedIn ? '已登录，可查看订单与发布草稿' : '未登录，建议先登录后再继续' }}</view>
         </view>
       </view>
-      <view class="stats-row">
-        <view class="stat-item">
-          <text class="stat-num">12</text>
-          <text class="stat-label">我发布的</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">5</text>
-          <text class="stat-label">我卖出的</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">2</text>
-          <text class="stat-label">我买到的</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">8</text>
-          <text class="stat-label">收藏</text>
+
+      <view class="stats-grid">
+        <view v-for="item in stats" :key="item.label" class="stat-cell">
+          <view class="stat-num">{{ item.value }}</view>
+          <view class="stat-label">{{ item.label }}</view>
         </view>
       </view>
     </view>
 
-    <!-- 设置组 -->
-    <view class="menu-group app-card">
+    <view class="menu-card app-card">
       <view class="menu-item">
-        <text class="menu-label">当前状态</text>
-        <text class="menu-val">已登录</text>
-      </view>
-      <view class="menu-item">
-        <text class="menu-label">主题模式</text>
-        <view class="theme-switch-mini">
-           <view 
-            class="switch-opt" 
-            :class="{ active: theme === 'light' }" 
+        <view class="menu-label">主题模式</view>
+        <view class="theme-switch">
+          <view
+            class="switch-opt"
+            :class="{ active: theme === 'light' }"
             @click="changeTheme('light')"
-           >白</view>
-           <view 
-            class="switch-opt" 
-            :class="{ active: theme === 'dark' }" 
+          >
+            白描
+          </view>
+          <view
+            class="switch-opt"
+            :class="{ active: theme === 'dark' }"
             @click="changeTheme('dark')"
-           >黑</view>
+          >
+            玄墨
+          </view>
         </view>
       </view>
-      <view class="menu-item" @click="logout">
-        <text class="menu-label danger">退出登录</text>
-        <text class="arrow">></text>
+
+      <view class="menu-item" @click="go('/pages/order/list')">
+        <view class="menu-label">我的订单</view>
+        <view class="menu-value">查看交易记录</view>
+      </view>
+
+      <view class="menu-item" @click="go('/pages/goods/publish')">
+        <view class="menu-label">发布草稿</view>
+        <view class="menu-value">继续编辑闲置</view>
+      </view>
+
+      <view class="menu-item" @click="toggleLoginAction">
+        <view class="menu-label danger">{{ isLoggedIn ? '退出登录' : '前往登录' }}</view>
+        <view class="menu-value">{{ isLoggedIn ? '清除本地会话' : '进入登录页' }}</view>
       </view>
     </view>
   </view>
 </template>
 
 <script>
-import { getTheme, setTheme, resolveThemeClass, applyNavigationTheme } from '../../utils/theme'
+import { getProfile } from '../../api/auth'
+import { useAuthStore } from '../../store/auth'
+import { setTheme, syncThemePage } from '../../utils/theme'
 
 export default {
   data() {
     return {
-      theme: getTheme(),
-      themeClass: resolveThemeClass(getTheme())
+      theme: 'light',
+      themeClass: '',
+      authStore: useAuthStore(),
+      profile: {}
     }
   },
+  computed: {
+    isLoggedIn() {
+      return this.authStore.sync().isLoggedIn()
+    },
+    displayName() {
+      return this.profile.username || this.authStore.getDisplayName()
+    },
+    profileInitial() {
+      return (this.displayName || '墨').slice(0, 1)
+    },
+    stats() {
+      return [
+        { label: '在售', value: this.isLoggedIn ? '12' : '--' },
+        { label: '已成交', value: this.isLoggedIn ? '5' : '--' },
+        { label: '收藏', value: this.isLoggedIn ? '8' : '--' },
+        { label: '信用', value: this.isLoggedIn ? '优' : '--' }
+      ]
+    }
+  },
+  onLoad() {
+    syncThemePage(this)
+  },
   onShow() {
-    this.syncTheme()
+    syncThemePage(this)
+    this.syncProfile()
   },
   methods: {
-    syncTheme() {
-      this.theme = getTheme()
-      this.themeClass = resolveThemeClass(this.theme)
-      applyNavigationTheme(this.theme)
+    syncProfile() {
+      this.authStore.sync()
+      this.profile = { ...this.authStore.profile }
+
+      if (!this.authStore.isLoggedIn()) {
+        return
+      }
+
+      getProfile()
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.profile = res.data || {}
+            this.authStore.setProfile(this.profile)
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '资料加载失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '资料加载失败', icon: 'none' })
+        })
     },
-    changeTheme(next) {
-      this.theme = setTheme(next)
-      this.themeClass = resolveThemeClass(this.theme)
-      uni.showToast({ title: this.theme === 'dark' ? '已切换黑色主题' : '已切换白色主题', icon: 'none' })
+    changeTheme(nextTheme) {
+      this.theme = setTheme(nextTheme)
+      this.themeClass = this.theme === 'dark' ? 'theme-dark' : 'theme-light'
+      uni.showToast({
+        title: this.theme === 'dark' ? '已切换为玄墨主题' : '已切换为白描主题',
+        icon: 'none'
+      })
     },
-    logout() {
-      uni.removeStorageSync('token')
-      uni.showToast({ title: '已退出' })
-      uni.reLaunch({ url: '/pages/user/login' })
+    toggleLoginAction() {
+      if (!this.isLoggedIn) {
+        uni.navigateTo({ url: '/pages/user/login' })
+        return
+      }
+
+      this.authStore.logout()
+      this.profile = {}
+      uni.showToast({ title: '已退出登录', icon: 'none' })
+      setTimeout(() => {
+        uni.reLaunch({ url: '/pages/user/login' })
+      }, 300)
+    },
+    go(url) {
+      uni.navigateTo({ url })
     }
   }
 }
 </script>
 
 <style scoped>
-.user-header {
-  padding: 40rpx 40rpx 20rpx;
+.profile-page {
+  padding-bottom: 40rpx;
+}
+
+.profile-hero,
+.menu-card {
+  padding: 30rpx;
   margin-bottom: 20rpx;
 }
 
-.avatar-area {
+.profile-top {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  margin-bottom: 40rpx;
+  gap: 22rpx;
+  margin-bottom: 28rpx;
 }
 
-.avatar-circle {
-  width: 120rpx;
-  height: 120rpx;
+.profile-avatar {
+  width: 116rpx;
+  height: 116rpx;
   border-radius: 50%;
-  background: var(--ink-text);
-  border: 4rpx solid var(--ink-border);
+  background: var(--ink-accent);
+  color: var(--ink-tag-active-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ink-font-title);
+  font-size: 42rpx;
 }
 
-.user-info {
-  display: flex;
-  flex-direction: column;
+.profile-name {
+  font-family: var(--ink-font-title);
+  font-size: 46rpx;
+  color: var(--ink-text);
+  margin-bottom: 12rpx;
+}
+
+.profile-meta {
+  font-size: 24rpx;
+  line-height: 1.75;
+  color: var(--ink-subtext);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 10rpx;
 }
 
-.nickname {
-  font-size: 40rpx;
-  font-weight: 800;
-  color: var(--ink-text);
-}
-
-.user-tag {
-  display: inline-block;
-  font-size: 20rpx;
-  background: var(--ink-tag-bg);
-  padding: 4rpx 12rpx;
-  border-radius: 20rpx;
-  color: var(--ink-subtext);
-  width: fit-content;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 10rpx;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6rpx;
+.stat-cell {
+  padding: 20rpx 10rpx;
+  text-align: center;
+  border-radius: 22rpx;
+  background: var(--ink-accent-soft);
 }
 
 .stat-num {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: var(--ink-text);
+  margin-bottom: 8rpx;
 }
 
 .stat-label {
-  font-size: 24rpx;
+  font-size: 21rpx;
   color: var(--ink-subtext);
 }
 
-.menu-group {
-  padding: 0 30rpx;
-}
-
 .menu-item {
-  height: 100rpx;
+  min-height: 110rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20rpx;
   border-bottom: 1rpx solid var(--ink-border);
 }
 
@@ -175,42 +229,38 @@ export default {
 }
 
 .menu-label {
-  font-size: 30rpx;
+  font-size: 29rpx;
   color: var(--ink-text);
 }
 
 .menu-label.danger {
-  color: var(--ink-accent);
-  font-weight: 600;
+  color: var(--ink-price);
 }
 
-.menu-val {
-  font-size: 26rpx;
+.menu-value {
+  font-size: 23rpx;
   color: var(--ink-subtext);
 }
 
-.arrow {
-  color: var(--ink-border);
-  font-weight: 700;
-}
-
-.theme-switch-mini {
+.theme-switch {
   display: flex;
-  background: var(--ink-bg);
-  padding: 4rpx;
-  border-radius: 24rpx;
-  border: 1rpx solid var(--ink-border);
+  gap: 8rpx;
+  padding: 8rpx;
+  border-radius: 999rpx;
+  background: var(--ink-accent-soft);
 }
 
 .switch-opt {
-  padding: 4rpx 20rpx;
-  font-size: 22rpx;
-  border-radius: 20rpx;
+  min-width: 110rpx;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 999rpx;
+  font-size: 23rpx;
   color: var(--ink-subtext);
 }
 
 .switch-opt.active {
-  background: var(--ink-text);
-  color: var(--ink-bg);
+  background: var(--ink-accent);
+  color: var(--ink-tag-active-text);
 }
 </style>
