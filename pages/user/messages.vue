@@ -6,7 +6,10 @@
           <text class="market-back-symbol">‹</text>
         </view>
         <view class="market-page-title">消息通知</view>
-        <view class="mark-read" @click="markRead">全部已读</view>
+        <view class="top-actions">
+          <view class="mark-read" @click="markRead">全部已读</view>
+          <view class="clear-all" @click="clearAll">一键清空</view>
+        </view>
       </view>
     </view>
 
@@ -31,7 +34,10 @@
               <view v-if="!item.isRead" class="message-dot"></view>
             </view>
             <view class="message-content">{{ item.content }}</view>
-            <view class="message-time">{{ formatTime(item.createdAt) }}</view>
+            <view class="message-foot">
+              <view class="message-time">{{ formatTime(item.createdAt) }}</view>
+              <view class="message-delete" @click.stop="removeMessage(item)">删除</view>
+            </view>
           </view>
         </view>
       </view>
@@ -40,7 +46,7 @@
 </template>
 
 <script>
-import { getMessageList, markAllMessagesRead } from '../../api/message'
+import { clearAllMessages, deleteMessage, getMessageList, markAllMessagesRead } from '../../api/message'
 import EmptyState from '../../components/EmptyState.vue'
 import { useAuthStore } from '../../store/auth'
 import { formatRelativeTime, getMessageMeta } from '../../utils/market'
@@ -118,6 +124,50 @@ export default {
           uni.showToast({ title: '操作失败', icon: 'none' })
         })
     },
+    removeMessage(item) {
+      if (!item || !item.id) {
+        return
+      }
+      deleteMessage(item.id)
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.messages = this.messages.filter((current) => current.id !== item.id)
+            uni.showToast({ title: res.message || '消息已删除', icon: 'none' })
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '删除失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '删除失败', icon: 'none' })
+        })
+    },
+    clearAll() {
+      if (!this.messages.length) {
+        uni.showToast({ title: '当前没有可清空的消息', icon: 'none' })
+        return
+      }
+      uni.showModal({
+        title: '一键清空',
+        content: '清空后将删除你当前账号下的全部消息，确认继续吗？',
+        success: ({ confirm }) => {
+          if (!confirm) {
+            return
+          }
+          clearAllMessages()
+            .then((res) => {
+              if (res && res.code === 0) {
+                this.messages = []
+                uni.showToast({ title: res.message || '消息已清空', icon: 'none' })
+                return
+              }
+              uni.showToast({ title: (res && res.message) || '清空失败', icon: 'none' })
+            })
+            .catch(() => {
+              uni.showToast({ title: '清空失败', icon: 'none' })
+            })
+        }
+      })
+    },
     goBack() {
       uni.navigateBack({
         fail: () => {
@@ -138,9 +188,20 @@ export default {
   margin-bottom: 18rpx;
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
 .mark-read {
   font-size: 22rpx;
   color: #2d6a4f;
+}
+
+.clear-all {
+  font-size: 22rpx;
+  color: #d9485f;
 }
 
 .page-body {
@@ -216,5 +277,18 @@ export default {
 .message-time {
   font-size: 21rpx;
   color: #adb5bd;
+}
+
+.message-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.message-delete {
+  font-size: 22rpx;
+  color: #d9485f;
+  flex-shrink: 0;
 }
 </style>

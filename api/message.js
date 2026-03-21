@@ -21,3 +21,17 @@ export function markAllMessagesRead() {
     method: 'POST'
   })
 }
+
+export function deleteMessage(id) {
+  return request({
+    url: `/messages/${id}`,
+    method: 'DELETE'
+  })
+}
+
+export function clearAllMessages() {
+  return request({
+    url: '/messages',
+    method: 'DELETE'
+  })
+}

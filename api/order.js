@@ -50,3 +50,10 @@ export function cancelOrder(id) {
     method: 'POST'
   })
 }
+
+export function deleteOrder(id) {
+  return request({
+    url: `/orders/${id}`,
+    method: 'DELETE'
+  })
+}

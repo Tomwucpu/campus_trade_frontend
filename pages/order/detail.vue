@@ -113,7 +113,7 @@
 </template>
 
 <script>
-import { cancelOrder, completeOrder, getOrderDetail, payOrder, shipOrder } from '../../api/order'
+import { cancelOrder, completeOrder, deleteOrder, getOrderDetail, payOrder, shipOrder } from '../../api/order'
 import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
@@ -200,7 +200,13 @@ export default {
       if (this.order.roleType === 'BUYER' && this.order.status === 'PENDING_PAYMENT') {
         return '取消订单'
       }
+      if (this.canDeleteOrder) {
+        return '删除订单'
+      }
       return '联系对方'
+    },
+    canDeleteOrder() {
+      return ['COMPLETED', 'CANCELLED'].includes(this.order.status)
     }
   },
   onLoad(options) {
@@ -265,7 +271,37 @@ export default {
         this.runAction(() => cancelOrder(this.order.id), '订单已取消')
         return
       }
+      if (this.canDeleteOrder) {
+        this.confirmDelete()
+        return
+      }
       uni.showToast({ title: `请联系${this.order.counterpartName}`, icon: 'none' })
+    },
+    confirmDelete() {
+      uni.showModal({
+        title: '删除订单',
+        content: '删除后该订单会从你的列表中移除，确认继续吗？',
+        success: ({ confirm }) => {
+          if (!confirm) {
+            return
+          }
+          deleteOrder(this.order.id)
+            .then((res) => {
+              if (res && res.code === 0) {
+                this.orderStore.setCurrentOrder(null)
+                uni.showToast({ title: res.message || '订单已删除', icon: 'success' })
+                setTimeout(() => {
+                  uni.reLaunch({ url: '/pages/order/list' })
+                }, 260)
+                return
+              }
+              uni.showToast({ title: (res && res.message) || '删除失败', icon: 'none' })
+            })
+            .catch(() => {
+              uni.showToast({ title: '删除失败', icon: 'none' })
+            })
+        }
+      })
     },
     runAction(action, title) {
       action()
