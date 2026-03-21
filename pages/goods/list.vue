@@ -103,6 +103,7 @@
           :key="item.id"
           :goods="item"
           @click="openDetail(item.id)"
+          @favorite-change="handleFavoriteChange"
         />
       </view>
     </view>
@@ -119,7 +120,8 @@ import {
   getConditionOptions,
   getDefaultCategoryList,
   getFallbackGoodsList,
-  normalizeGoodsItem
+  normalizeGoodsItem,
+  patchGoodsFavoriteState
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
@@ -252,6 +254,12 @@ export default {
     applyFilters() {
       this.showFilter = false
       this.persistQuery()
+    },
+    handleFavoriteChange(payload) {
+      if (!payload || !payload.id) {
+        return
+      }
+      this.list = patchGoodsFavoriteState(this.list, payload.id, payload.value)
     },
     openDetail(id) {
       this.goodsStore.setLastViewedId(id)

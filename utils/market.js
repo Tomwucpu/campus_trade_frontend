@@ -284,6 +284,8 @@ export function normalizeGoodsItem(item = {}, index = 0) {
   const originalPriceValue = Number(item.originalPrice || 0)
   const createdAt = item.createdAt || item.updatedAt || item.publishTime || item.publishedAt || Date.now() - seed * 6000
   const imageUrl = resolveGoodsImage(item, index)
+  const favoriteCount = item.favoriteCount === 0 || item.favoriteCount ? Number(item.favoriteCount) : 6 + (seed % 30)
+  const isFavorite = item.isFavorite === true
 
   return {
     ...item,
@@ -306,7 +308,7 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     sellerName: item.sellerName || pickSeed(seed, SELLER_NAMES),
     campusLocation: item.campusLocation || pickSeed(seed + 1, CAMPUS_LOCATIONS),
     viewCount: Number(item.viewCount || item.glanceCount || 0),
-    favoriteCount: Number(item.favoriteCount || 6 + (seed % 30)),
+    favoriteCount,
     status: item.status || 'ON_SALE',
     statusText: GOODS_STATUS_TEXT[item.status] || '在售中',
     publishedAtText: formatRelativeTime(createdAt),
@@ -314,7 +316,7 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     createdAtValue: parseTimeValue(createdAt),
     sellerRating: item.sellerRating || (4.6 + (seed % 4) * 0.1).toFixed(1),
     sellerStudentNo: item.sellerStudentNo || `2023****${String((seed % 90) + 10)}`,
-    isFavorite: isFavoriteGoods(item.id || index + 1)
+    isFavorite
   }
 }
 
@@ -479,6 +481,24 @@ export function buildOrderTimeline(order = {}) {
   ]
 }
 
+export function patchGoodsFavoriteState(list = [], goodsId, nextFavorite) {
+  return list.map((item) => {
+    if (String(item.id) !== String(goodsId)) {
+      return item
+    }
+
+    const currentFavorite = item.isFavorite === true
+    const currentCount = item.favoriteCount === 0 || item.favoriteCount ? Number(item.favoriteCount) : 0
+    const delta = nextFavorite === currentFavorite ? 0 : (nextFavorite ? 1 : -1)
+
+    return {
+      ...item,
+      isFavorite: nextFavorite,
+      favoriteCount: Math.max(0, currentCount + delta)
+    }
+  })
+}
+
 export function getFavoriteGoodsIds() {
   const value = readStorage(FAVORITE_KEY, [])
   return Array.isArray(value) ? value : []
@@ -553,10 +573,12 @@ export function getUnreadMessageCount() {
 }
 
 export function getMessageMeta(type) {
-  if (type === 'order') {
+  const normalizedType = `${type || ''}`.trim().toUpperCase()
+
+  if (normalizedType === 'ORDER') {
     return { icon: '✓', iconBg: '#E8F5E9', iconColor: '#1B5E20' }
   }
-  if (type === 'audit') {
+  if (normalizedType === 'AUDIT') {
     return { icon: '审', iconBg: '#FFF3E0', iconColor: '#E65100' }
   }
   return { icon: '铃', iconBg: '#E3F2FD', iconColor: '#1565C0' }

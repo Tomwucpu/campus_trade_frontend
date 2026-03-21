@@ -88,7 +88,7 @@
 import { getProfile } from '../../api/auth'
 import AppTabBar from '../../components/AppTabBar.vue'
 import { useAuthStore } from '../../store/auth'
-import { getFavoriteGoodsIds, getUnreadMessageCount, maskPhone, maskStudentNo } from '../../utils/market'
+import { maskPhone, maskStudentNo } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 function createEmptyProfile() {
@@ -98,7 +98,9 @@ function createEmptyProfile() {
     studentNo: '',
     onSaleCount: 0,
     soldCount: 0,
-    orderCount: 0
+    orderCount: 0,
+    favoriteCount: 0,
+    unreadMessageCount: 0
   }
 }
 
@@ -111,9 +113,7 @@ export default {
       theme: 'light',
       themeClass: 'theme-light',
       authStore: useAuthStore(),
-      profile: createEmptyProfile(),
-      favoriteCountValue: 0,
-      unreadCountValue: 0
+      profile: createEmptyProfile()
     }
   },
   computed: {
@@ -140,10 +140,10 @@ export default {
       ]
     },
     favoriteCount() {
-      return this.favoriteCountValue
+      return this.profile.favoriteCount || 0
     },
     unreadCount() {
-      return this.unreadCountValue
+      return this.profile.unreadMessageCount || 0
     }
   },
   onLoad() {
@@ -156,8 +156,6 @@ export default {
   methods: {
     syncProfile() {
       this.authStore.sync()
-      this.favoriteCountValue = getFavoriteGoodsIds().length
-      this.unreadCountValue = getUnreadMessageCount()
       this.profile = {
         ...createEmptyProfile(),
         ...this.authStore.profile
@@ -188,8 +186,6 @@ export default {
 
       this.authStore.logout()
       this.profile = createEmptyProfile()
-      this.favoriteCountValue = 0
-      this.unreadCountValue = 0
       uni.showToast({ title: '已退出登录', icon: 'none' })
       setTimeout(() => {
         uni.reLaunch({ url: '/pages/user/login' })

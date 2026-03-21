@@ -87,7 +87,7 @@ import { getMyGoodsList, offSaleGoods, onSaleGoods } from '../../api/goods'
 import EmptyState from '../../components/EmptyState.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
-import { normalizeGoodsItem, pushLocalMessage } from '../../utils/market'
+import { normalizeGoodsItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -205,11 +205,6 @@ export default {
       action()
         .then((res) => {
           if (res && res.code === 0) {
-            pushLocalMessage({
-              type: 'audit',
-              title,
-              content: `你发布的“${item.title}”状态已更新为“${this.statusText(nextStatus)}”。`
-            })
             uni.showToast({ title: res.message || title, icon: 'success' })
             this.fetchList()
             return

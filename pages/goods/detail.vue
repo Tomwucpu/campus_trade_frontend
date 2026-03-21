@@ -87,6 +87,7 @@
 </template>
 
 <script>
+import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
 import { useAuthStore } from '../../store/auth'
@@ -94,10 +95,7 @@ import { useGoodsStore } from '../../store/goods'
 import { useOrderStore } from '../../store/order'
 import {
   getFallbackGoodsList,
-  isFavoriteGoods,
-  normalizeGoodsItem,
-  pushLocalMessage,
-  toggleFavoriteGoods
+  normalizeGoodsItem
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
@@ -151,7 +149,7 @@ export default {
   onShow() {
     syncThemePage(this)
     this.authStore.sync()
-    this.favoriteState = isFavoriteGoods(this.detail.id)
+    this.favoriteState = this.detail.isFavorite === true
   },
   methods: {
     onSwiperChange(event) {
@@ -167,7 +165,7 @@ export default {
         .then((res) => {
           if (res && res.code === 0) {
             this.detail = normalizeGoodsItem(res.data || {}, 0)
-            this.favoriteState = isFavoriteGoods(this.detail.id)
+            this.favoriteState = this.detail.isFavorite === true
             return
           }
           uni.showToast({ title: (res && res.message) || '详情加载失败', icon: 'none' })
@@ -177,9 +175,30 @@ export default {
         })
     },
     toggleFavorite() {
-      const next = toggleFavoriteGoods(this.detail.id)
-      this.favoriteState = next
-      uni.showToast({ title: next ? '已加入收藏' : '已取消收藏', icon: 'none' })
+      if (!this.ensureLogin()) {
+        return
+      }
+
+      const next = !this.favoriteState
+      const action = next ? () => addFavorite(this.detail.id) : () => removeFavorite(this.detail.id)
+      action()
+        .then((res) => {
+          if (res && res.code === 0) {
+            const favoriteCount = Math.max(0, Number(this.detail.favoriteCount || 0) + (next ? 1 : -1))
+            this.favoriteState = next
+            this.detail = {
+              ...this.detail,
+              isFavorite: next,
+              favoriteCount
+            }
+            uni.showToast({ title: res.message || (next ? '收藏成功' : '已取消收藏'), icon: 'none' })
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        })
     },
     ensureLogin() {
       if (this.authStore.sync().isLoggedIn()) {
@@ -210,11 +229,6 @@ export default {
         .then((res) => {
           if (res && res.code === 0 && res.data) {
             this.orderStore.setCurrentOrder(res.data)
-            pushLocalMessage({
-              type: 'order',
-              title: '订单创建成功',
-              content: `你已成功下单“${this.detail.title}”，请尽快完成付款。`
-            })
             uni.showToast({ title: res.message || '下单成功', icon: 'success' })
             setTimeout(() => {
               uni.navigateTo({ url: '/pages/order/list' })

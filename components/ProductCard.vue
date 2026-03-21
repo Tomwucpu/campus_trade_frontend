@@ -24,7 +24,8 @@
 </template>
 
 <script>
-import { isFavoriteGoods, toggleFavoriteGoods } from '../utils/market'
+import { addFavorite, removeFavorite } from '../api/favorite'
+import { useAuthStore } from '../store/auth'
 
 export default {
   emits: ['click', 'favorite-change'],
@@ -36,22 +37,58 @@ export default {
   },
   data() {
     return {
-      favoriteState: false
+      favoriteState: false,
+      toggling: false,
+      authStore: useAuthStore()
     }
   },
   watch: {
-    'goods.id': {
+    goods: {
       immediate: true,
+      deep: true,
       handler(value) {
-        this.favoriteState = isFavoriteGoods(value)
+        this.favoriteState = Boolean(value && value.isFavorite)
       }
     }
   },
   methods: {
+    ensureLogin() {
+      if (this.authStore.sync().isLoggedIn()) {
+        return true
+      }
+      uni.showToast({ title: '请先登录后再收藏', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 260)
+      return false
+    },
     toggleFavorite() {
-      const next = toggleFavoriteGoods(this.goods.id)
-      this.favoriteState = next
-      this.$emit('favorite-change', { id: this.goods.id, value: next })
+      if (this.toggling) {
+        return
+      }
+      if (!this.ensureLogin()) {
+        return
+      }
+
+      const next = !this.favoriteState
+      const action = next ? () => addFavorite(this.goods.id) : () => removeFavorite(this.goods.id)
+      this.toggling = true
+      action()
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.favoriteState = next
+            this.$emit('favorite-change', { id: this.goods.id, value: next })
+            uni.showToast({ title: res.message || (next ? '收藏成功' : '已取消收藏'), icon: 'none' })
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        })
+        .finally(() => {
+          this.toggling = false
+        })
     }
   }
 }

@@ -145,8 +145,7 @@ import { useGoodsStore } from '../../store/goods'
 import {
   getConditionOptions,
   getDefaultCategoryList,
-  normalizeGoodsItem,
-  pushLocalMessage
+  normalizeGoodsItem
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
@@ -374,13 +373,6 @@ export default {
         if (res && res.code === 0 && res.data) {
           const targetId = res.data.id || this.id
           uni.removeStorageSync(this.draftKey)
-          pushLocalMessage({
-            type: 'audit',
-            title: this.isEdit ? '商品修改成功' : '商品发布成功',
-            content: this.isEdit
-              ? `你发布的“${payload.title}”已完成修改。`
-              : `你发布的“${payload.title}”已成功进入市集列表。`
-          })
           this.goodsStore.setLastViewedId(targetId)
           this.form = createDefaultForm()
           uni.hideLoading()

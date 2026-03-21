@@ -120,8 +120,7 @@ import { useOrderStore } from '../../store/order'
 import {
   buildOrderTimeline,
   createCampusAddress,
-  normalizeOrderItem,
-  pushLocalMessage
+  normalizeOrderItem
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
@@ -274,11 +273,6 @@ export default {
           if (res && res.code === 0) {
             this.order = normalizeOrderItem(res.data || this.order, 0)
             this.orderStore.setCurrentOrder(this.order)
-            pushLocalMessage({
-              type: 'order',
-              title,
-              content: `订单 ${this.order.orderNo} 当前状态为“${this.order.statusText}”。`
-            })
             uni.showToast({ title: res.message || '操作成功', icon: 'success' })
             return
           }

@@ -31,7 +31,7 @@
               <view v-if="!item.isRead" class="message-dot"></view>
             </view>
             <view class="message-content">{{ item.content }}</view>
-            <view class="message-time">{{ item.time }}</view>
+            <view class="message-time">{{ formatTime(item.createdAt) }}</view>
           </view>
         </view>
       </view>
@@ -40,8 +40,10 @@
 </template>
 
 <script>
+import { getMessageList, markAllMessagesRead } from '../../api/message'
 import EmptyState from '../../components/EmptyState.vue'
-import { getMessageList, getMessageMeta, markAllMessagesRead } from '../../utils/market'
+import { useAuthStore } from '../../store/auth'
+import { formatRelativeTime, getMessageMeta } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -52,28 +54,69 @@ export default {
     return {
       theme: 'light',
       themeClass: 'theme-light',
+      authStore: useAuthStore(),
       messages: []
     }
   },
   onLoad() {
+    if (!this.ensureLogin()) {
+      return
+    }
     syncThemePage(this)
     this.refreshMessages()
   },
   onShow() {
     syncThemePage(this)
-    this.refreshMessages()
+    if (this.authStore.sync().isLoggedIn()) {
+      this.refreshMessages()
+    }
   },
   methods: {
+    ensureLogin() {
+      if (this.authStore.sync().isLoggedIn()) {
+        return true
+      }
+      uni.showToast({ title: '请先登录后查看消息', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 260)
+      return false
+    },
     refreshMessages() {
-      this.messages = getMessageList()
+      getMessageList({
+        pageNum: 1,
+        pageSize: 50
+      })
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.messages = (res.data && res.data.records) || []
+            return
+          }
+          this.messages = []
+        })
+        .catch(() => {
+          this.messages = []
+        })
     },
     getMeta(type) {
       return getMessageMeta(type)
     },
+    formatTime(value) {
+      return formatRelativeTime(value)
+    },
     markRead() {
       markAllMessagesRead()
-      this.refreshMessages()
-      uni.showToast({ title: '已全部标记为已读', icon: 'none' })
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.messages = this.messages.map((item) => ({ ...item, isRead: true }))
+            uni.showToast({ title: res.message || '已全部标记为已读', icon: 'none' })
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        })
     },
     goBack() {
       uni.navigateBack({

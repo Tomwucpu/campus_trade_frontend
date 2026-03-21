@@ -6,7 +6,7 @@
           <text class="market-back-symbol">‹</text>
         </view>
         <view class="market-page-title">我的收藏</view>
-        <view class="count-tip">{{ favoriteIds.length }}</view>
+        <view class="count-tip">{{ favoriteTotal }}</view>
       </view>
     </view>
 
@@ -34,10 +34,11 @@
 </template>
 
 <script>
-import { getGoodsList } from '../../api/goods'
+import { getFavoriteList } from '../../api/favorite'
 import EmptyState from '../../components/EmptyState.vue'
 import ProductCard from '../../components/ProductCard.vue'
-import { getFavoriteGoodsIds, getFallbackGoodsList, normalizeGoodsItem } from '../../utils/market'
+import { useAuthStore } from '../../store/auth'
+import { normalizeGoodsItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -49,49 +50,66 @@ export default {
     return {
       theme: 'light',
       themeClass: 'theme-light',
+      authStore: useAuthStore(),
       list: [],
-      favoriteIdsSnapshot: []
+      favoriteTotal: 0
     }
   },
   computed: {
-    favoriteIds() {
-      return this.favoriteIdsSnapshot
-    },
     displayList() {
-      const base = (this.list.length ? this.list : getFallbackGoodsList()).map((item, index) => normalizeGoodsItem(item, index))
-      return base.filter((item) => this.favoriteIds.includes(String(item.id)))
+      return this.list.map((item, index) => normalizeGoodsItem(item, index))
     }
   },
   onLoad() {
+    if (!this.ensureLogin()) {
+      return
+    }
     syncThemePage(this)
-    this.favoriteIdsSnapshot = getFavoriteGoodsIds()
     this.fetchList()
   },
   onShow() {
     syncThemePage(this)
-    this.favoriteIdsSnapshot = getFavoriteGoodsIds()
-    this.fetchList()
+    if (this.authStore.sync().isLoggedIn()) {
+      this.fetchList()
+    }
   },
   methods: {
+    ensureLogin() {
+      if (this.authStore.sync().isLoggedIn()) {
+        return true
+      }
+      uni.showToast({ title: '请先登录后查看收藏', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 260)
+      return false
+    },
     fetchList() {
-      getGoodsList({
+      getFavoriteList({
         pageNum: 1,
         pageSize: 50
       })
         .then((res) => {
           if (res && res.code === 0) {
             this.list = (res.data && res.data.records) || []
+            this.favoriteTotal = Number((res.data && res.data.total) || 0)
             return
           }
           this.list = []
+          this.favoriteTotal = 0
         })
         .catch(() => {
           this.list = []
+          this.favoriteTotal = 0
         })
     },
-    refreshList() {
-      this.favoriteIdsSnapshot = getFavoriteGoodsIds()
-      this.list = this.list.slice()
+    refreshList(payload) {
+      if (payload && payload.value === false) {
+        this.list = this.list.filter((item) => String(item.id) !== String(payload.id))
+        this.favoriteTotal = Math.max(0, this.favoriteTotal - 1)
+        return
+      }
+      this.fetchList()
     },
     openDetail(id) {
       uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })

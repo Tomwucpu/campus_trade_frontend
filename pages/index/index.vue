@@ -55,16 +55,16 @@
         </view>
 
         <scroll-view scroll-x class="recommend-scroll" show-scrollbar="false">
-          <view class="recommend-row">
-            <view
-              v-for="item in recommendGoods"
-              :key="`recommend-${item.id}`"
-              class="recommend-item"
-            >
-              <ProductCard :goods="item" @click="openDetail(item.id)" />
-            </view>
+        <view class="recommend-row">
+          <view
+            v-for="item in recommendGoods"
+            :key="`recommend-${item.id}`"
+            class="recommend-item"
+          >
+              <ProductCard :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
           </view>
-        </scroll-view>
+        </view>
+      </scroll-view>
       </view>
 
       <view class="market-row-head latest-head">
@@ -84,6 +84,7 @@
           :key="item.id"
           :goods="item"
           @click="openDetail(item.id)"
+          @favorite-change="handleFavoriteChange"
         />
       </view>
     </view>
@@ -94,14 +95,16 @@
 
 <script>
 import { getGoodsList } from '../../api/goods'
+import { getUnreadMessageCount } from '../../api/message'
 import AppTabBar from '../../components/AppTabBar.vue'
 import ProductCard from '../../components/ProductCard.vue'
+import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
   getFallbackGoodsList,
   getHomeCategories,
-  getUnreadMessageCount,
   normalizeGoodsItem,
+  patchGoodsFavoriteState,
   sortGoodsList
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
@@ -115,6 +118,7 @@ export default {
     return {
       theme: 'light',
       themeClass: 'theme-light',
+      authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
       searchKeyword: '',
       categories: getHomeCategories(),
@@ -155,7 +159,11 @@ export default {
       syncThemePage(this)
       const store = this.goodsStore.sync()
       this.searchKeyword = store.keyword
-      this.unreadCountValue = getUnreadMessageCount()
+      if (!this.authStore.sync().isLoggedIn()) {
+        this.unreadCountValue = 0
+        return
+      }
+      this.fetchUnreadCount()
     },
     fetchHomeFeed() {
       getGoodsList({
@@ -172,6 +180,21 @@ export default {
         .catch(() => {
           this.goodsList = []
         })
+    },
+    fetchUnreadCount() {
+      getUnreadMessageCount()
+        .then((res) => {
+          this.unreadCountValue = res && res.code === 0 ? Number(res.data || 0) : 0
+        })
+        .catch(() => {
+          this.unreadCountValue = 0
+        })
+    },
+    handleFavoriteChange(payload) {
+      if (!payload || !payload.id) {
+        return
+      }
+      this.goodsList = patchGoodsFavoriteState(this.goodsList, payload.id, payload.value)
     },
     shuffleRecommend() {
       this.recommendOffset += 1

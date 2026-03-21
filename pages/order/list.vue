@@ -72,7 +72,7 @@ import EmptyState from '../../components/EmptyState.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
-import { normalizeOrderItem, pushLocalMessage } from '../../utils/market'
+import { normalizeOrderItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -206,11 +206,6 @@ export default {
           if (res && res.code === 0) {
             const nextOrder = normalizeOrderItem(res.data || item, 0)
             this.orderStore.setCurrentOrder(nextOrder)
-            pushLocalMessage({
-              type: 'order',
-              title,
-              content: `订单 ${nextOrder.orderNo} 当前状态为“${nextOrder.statusText}”。`
-            })
             uni.showToast({ title: res.message || '操作成功', icon: 'success' })
             this.fetchList()
             return
