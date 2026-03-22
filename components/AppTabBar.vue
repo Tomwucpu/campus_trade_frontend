@@ -24,10 +24,11 @@ export default {
   data() {
     return {
       tabs: [
-        { key: 'home', label: '首页', icon: '⌂', path: '/pages/index/index' },
-        { key: 'publish', label: '发布', icon: '+', path: '/pages/goods/publish' },
-        { key: 'orders', label: '订单', icon: '▦', path: '/pages/order/list' },
-        { key: 'profile', label: '我的', icon: '◉', path: '/pages/user/profile' }
+        { key: 'home', label: '首页', icon: '首', path: '/pages/index/index' },
+        { key: 'publish', label: '发布', icon: '发', path: '/pages/goods/publish' },
+        { key: 'chat', label: '消息', icon: '信', path: '/pages/chat/list' },
+        { key: 'orders', label: '订单', icon: '单', path: '/pages/order/list' },
+        { key: 'profile', label: '我的', icon: '我', path: '/pages/user/profile' }
       ]
     }
   },
@@ -58,6 +59,7 @@ export default {
 
 .tabbar-item {
   flex: 1;
+  min-width: 0;
   height: 100rpx;
   display: flex;
   flex-direction: column;
@@ -72,14 +74,14 @@ export default {
 }
 
 .tabbar-icon {
-  width: 54rpx;
-  height: 54rpx;
+  width: 50rpx;
+  height: 50rpx;
   border-radius: 18rpx;
   background: #f8f9fa;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30rpx;
+  font-size: 24rpx;
   font-weight: 700;
 }
 
@@ -89,7 +91,8 @@ export default {
 }
 
 .tabbar-label {
-  font-size: 22rpx;
+  font-size: 20rpx;
   font-weight: 600;
+  white-space: nowrap;
 }
 </style>

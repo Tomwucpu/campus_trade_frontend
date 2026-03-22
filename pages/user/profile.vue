@@ -14,7 +14,7 @@
               <view class="profile-badge">交易可信</view>
             </view>
           </view>
-          <view class="profile-edit" @click="go('/pages/goods/publish')">编</view>
+          <view class="profile-edit" @click="go('/pages/goods/publish')">发</view>
         </view>
 
         <view class="stats-grid">
@@ -44,9 +44,17 @@
           <text class="menu-value">{{ favoriteCount }}</text>
         </view>
 
+        <view class="menu-item" @click="go('/pages/chat/list')">
+          <view class="menu-main">
+            <view class="menu-icon">聊</view>
+            <text class="menu-text">聊天消息</text>
+          </view>
+          <text class="menu-value">{{ chatUnreadCount }}</text>
+        </view>
+
         <view class="menu-item" @click="go('/pages/user/messages')">
           <view class="menu-main">
-            <view class="menu-icon">铃</view>
+            <view class="menu-icon">信</view>
             <text class="menu-text">消息通知</text>
           </view>
           <text class="menu-value">{{ unreadCount }}</text>
@@ -64,18 +72,18 @@
       <view class="market-card menu-card">
         <view class="menu-item" @click="go('/pages/goods/publish')">
           <view class="menu-main">
-            <view class="menu-icon light">+</view>
+            <view class="menu-icon light">发</view>
             <text class="menu-text">继续发布</text>
           </view>
-          <text class="menu-arrow">›</text>
+          <text class="menu-arrow">></text>
         </view>
 
         <view class="menu-item" @click="toggleLoginAction">
           <view class="menu-main">
-            <view class="menu-icon light">退</view>
-            <text class="menu-text">{{ isLoggedIn ? '退出登录' : '前往登录' }}</text>
+            <view class="menu-icon light">{{ isLoggedIn ? '退' : '登' }}</view>
+            <text class="menu-text">{{ loginActionText }}</text>
           </view>
-          <text class="menu-arrow">›</text>
+          <text class="menu-arrow">></text>
         </view>
       </view>
     </view>
@@ -86,6 +94,7 @@
 
 <script>
 import { getProfile } from '../../api/auth'
+import { getChatUnreadCount } from '../../api/chat'
 import AppTabBar from '../../components/AppTabBar.vue'
 import { useAuthStore } from '../../store/auth'
 import { maskPhone, maskStudentNo } from '../../utils/market'
@@ -113,34 +122,41 @@ export default {
       theme: 'light',
       themeClass: 'theme-light',
       authStore: useAuthStore(),
-      profile: createEmptyProfile()
+      profile: createEmptyProfile(),
+      chatUnreadCountValue: 0
     }
   },
   computed: {
     isLoggedIn() {
       return this.authStore.sync().isLoggedIn()
     },
+    loginActionText() {
+      return this.isLoggedIn ? '退出登录' : '前往登录'
+    },
     displayName() {
       return this.profile.username || this.authStore.getDisplayName()
     },
     profileInitial() {
-      return (this.displayName || '张').slice(0, 1)
+      return (this.displayName || '我').slice(0, 1)
     },
     profileSummary() {
       if (!this.isLoggedIn) {
-        return '未登录，登录后可查看订单、收藏和发布信息。'
+        return '未登录，登录后可查看订单、收藏、聊天和发布信息。'
       }
-      return `${maskPhone(this.profile.phone)} · ${maskStudentNo(this.profile.studentNo)}`
+      return `${maskPhone(this.profile.phone)} / ${maskStudentNo(this.profile.studentNo)}`
     },
     stats() {
       return [
         { label: '发布', value: this.isLoggedIn ? this.profile.onSaleCount || 0 : '--' },
-        { label: '出售', value: this.isLoggedIn ? this.profile.soldCount || 0 : '--' },
+        { label: '售出', value: this.isLoggedIn ? this.profile.soldCount || 0 : '--' },
         { label: '订单', value: this.isLoggedIn ? this.profile.orderCount || 0 : '--' }
       ]
     },
     favoriteCount() {
       return this.profile.favoriteCount || 0
+    },
+    chatUnreadCount() {
+      return this.chatUnreadCountValue || 0
     },
     unreadCount() {
       return this.profile.unreadMessageCount || 0
@@ -162,9 +178,11 @@ export default {
       }
 
       if (!this.authStore.isLoggedIn()) {
+        this.chatUnreadCountValue = 0
         return
       }
 
+      this.fetchChatUnreadCount()
       getProfile()
         .then((res) => {
           if (res && res.code === 0) {
@@ -178,6 +196,15 @@ export default {
           uni.showToast({ title: '资料加载失败', icon: 'none' })
         })
     },
+    fetchChatUnreadCount() {
+      getChatUnreadCount()
+        .then((res) => {
+          this.chatUnreadCountValue = res && res.code === 0 ? Number(res.data || 0) : 0
+        })
+        .catch(() => {
+          this.chatUnreadCountValue = 0
+        })
+    },
     toggleLoginAction() {
       if (!this.isLoggedIn) {
         uni.navigateTo({ url: '/pages/user/login' })
@@ -186,6 +213,7 @@ export default {
 
       this.authStore.logout()
       this.profile = createEmptyProfile()
+      this.chatUnreadCountValue = 0
       uni.showToast({ title: '已退出登录', icon: 'none' })
       setTimeout(() => {
         uni.reLaunch({ url: '/pages/user/login' })

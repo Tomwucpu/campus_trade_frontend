@@ -11,9 +11,9 @@
         <view class="market-shell">
           <view class="market-topbar">
             <view class="market-back-btn transparent" @click="goBack">
-              <text class="market-back-symbol">‹</text>
+              <text class="market-back-symbol">&lt;</text>
             </view>
-            <view class="market-icon-btn transparent">↗</view>
+            <view class="market-icon-btn transparent">...</view>
           </view>
         </view>
       </view>
@@ -50,11 +50,11 @@
 
       <view class="market-card seller-card">
         <view class="seller-main">
-          <view class="seller-avatar">{{ detail.sellerName.slice(0, 1) }}</view>
+          <view class="seller-avatar">{{ (detail.sellerName || '卖').slice(0, 1) }}</view>
           <view class="seller-copy">
             <view class="seller-name-row">
               <text class="seller-name">{{ detail.sellerName }}</text>
-              <text class="seller-rating">★ {{ detail.sellerRating }}</text>
+              <text class="seller-rating">★{{ detail.sellerRating }}</text>
             </view>
             <view class="seller-subtitle">{{ detail.sellerStudentNo }} · {{ detail.campusLocation }}</view>
           </view>
@@ -71,12 +71,12 @@
     <view class="buy-bar market-card">
       <view class="buy-tools">
         <view class="tool-item" @click="toggleFavorite">
-          <text class="tool-icon">{{ favorite ? '♥' : '♡' }}</text>
+          <text class="tool-icon">{{ favorite ? '已' : '藏' }}</text>
           <text class="tool-label">收藏</text>
         </view>
-        <view class="tool-item" @click="chatSeller">
+        <view class="tool-item" @click="openSellerChatSafe">
           <text class="tool-icon">聊</text>
-          <text class="tool-label">咨询</text>
+          <text class="tool-label">联系</text>
         </view>
       </view>
       <button class="market-primary-btn buy-btn" :disabled="actionDisabled" @click="createTradeOrder">
@@ -87,6 +87,7 @@
 </template>
 
 <script>
+import { openConversationByGoods } from '../../api/chat'
 import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
@@ -210,11 +211,37 @@ export default {
       }, 260)
       return false
     },
-    chatSeller() {
-      if (!this.ensureLogin()) {
+    openSellerChatSafe() {
+      if (!this.authStore.sync().isLoggedIn()) {
+        uni.showToast({ title: '请先登录后联系商家', icon: 'none' })
+        setTimeout(() => {
+          uni.navigateTo({ url: '/pages/user/login' })
+        }, 260)
         return
       }
-      uni.showToast({ title: `建议与${this.detail.sellerName}约在校内面交`, icon: 'none' })
+      if (this.isOwnGoods) {
+        uni.showToast({ title: '这是你自己发布的商品', icon: 'none' })
+        return
+      }
+      if (!this.detail.id) {
+        uni.showToast({ title: '商品信息加载中', icon: 'none' })
+        return
+      }
+
+      openConversationByGoods(this.detail.id)
+        .then((res) => {
+          if (res && res.code === 0 && res.data && res.data.id) {
+            uni.navigateTo({ url: `/pages/chat/detail?id=${res.data.id}` })
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '暂时无法进入聊天', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '暂时无法进入聊天', icon: 'none' })
+        })
+    },
+    openSellerChat() {
+      this.openSellerChatSafe()
     },
     createTradeOrder() {
       if (this.actionDisabled) {
