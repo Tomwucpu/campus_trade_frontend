@@ -40,8 +40,8 @@
             <StatusTag :status="item.statusText" :type="item.statusType" />
           </view>
 
-          <view class="order-body">
-            <image class="order-image" :src="item.imageUrl" mode="aspectFill"></image>
+          <view class="order-body" :class="{ 'without-image': !item.imageUrl }">
+            <image v-if="item.imageUrl" class="order-image" :src="item.imageUrl" mode="aspectFill"></image>
             <view class="order-main">
               <view class="order-title">{{ item.goodsTitle }}</view>
               <view class="order-meta">{{ item.roleType === 'SELLER' ? '买家' : '卖家' }}：{{ item.counterpartName }}</view>
@@ -333,6 +333,10 @@ export default {
   display: flex;
   gap: 18rpx;
   margin-bottom: 20rpx;
+}
+
+.order-body.without-image {
+  gap: 0;
 }
 
 .order-image {

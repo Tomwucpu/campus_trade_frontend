@@ -25,8 +25,8 @@
 
       <view class="market-card detail-card">
         <view class="market-section-title">商品信息</view>
-        <view class="goods-block">
-          <image class="goods-image" :src="order.imageUrl" mode="aspectFill"></image>
+        <view class="goods-block" :class="{ 'without-image': !order.imageUrl }">
+          <image v-if="order.imageUrl" class="goods-image" :src="order.imageUrl" mode="aspectFill"></image>
           <view class="goods-main">
             <view class="goods-title">{{ order.goodsTitle }}</view>
             <view class="goods-meta">{{ order.counterpartName }}</view>
@@ -399,6 +399,10 @@ export default {
   display: flex;
   gap: 18rpx;
   margin-top: 20rpx;
+}
+
+.goods-block.without-image {
+  gap: 0;
 }
 
 .goods-image {

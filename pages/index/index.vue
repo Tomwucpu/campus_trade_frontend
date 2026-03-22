@@ -54,17 +54,24 @@
           <view class="head-link" @click="shuffleRecommend">换一批</view>
         </view>
 
-        <scroll-view scroll-x class="recommend-scroll" show-scrollbar="false">
-        <view class="recommend-row">
-          <view
-            v-for="item in recommendGoods"
-            :key="`recommend-${item.id}`"
-            class="recommend-item"
-          >
+        <scroll-view v-if="recommendGoods.length" scroll-x class="recommend-scroll" show-scrollbar="false">
+          <view class="recommend-row">
+            <view
+              v-for="item in recommendGoods"
+              :key="`recommend-${item.id}`"
+              class="recommend-item"
+            >
               <ProductCard :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
+            </view>
           </view>
-        </view>
-      </scroll-view>
+        </scroll-view>
+
+        <EmptyState
+          v-else
+          icon="📦"
+          title="暂无推荐商品"
+          description="当前没有可展示的商品，接入后端数据后会在这里展示。"
+        />
       </view>
 
       <view class="market-row-head latest-head">
@@ -78,13 +85,21 @@
         <view class="head-link" @click="go('/pages/goods/list')">查看更多</view>
       </view>
 
-      <view class="goods-grid">
+      <view v-if="latestGoods.length" class="goods-grid">
         <ProductCard
           v-for="item in latestGoods"
           :key="item.id"
           :goods="item"
           @click="openDetail(item.id)"
           @favorite-change="handleFavoriteChange"
+        />
+      </view>
+
+      <view v-else class="market-card latest-empty-card">
+        <EmptyState
+          icon="🗂"
+          title="暂无商品"
+          description="当前商品列表为空，后端服务可用后会自动显示最新发布内容。"
         />
       </view>
     </view>
@@ -97,11 +112,11 @@
 import { getGoodsList } from '../../api/goods'
 import { getUnreadMessageCount } from '../../api/message'
 import AppTabBar from '../../components/AppTabBar.vue'
+import EmptyState from '../../components/EmptyState.vue'
 import ProductCard from '../../components/ProductCard.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
-  getFallbackGoodsList,
   getHomeCategories,
   normalizeGoodsItem,
   patchGoodsFavoriteState,
@@ -112,6 +127,7 @@ import { syncThemePage } from '../../utils/theme'
 export default {
   components: {
     AppTabBar,
+    EmptyState,
     ProductCard
   },
   data() {
@@ -132,8 +148,7 @@ export default {
       return this.unreadCountValue
     },
     normalizedGoods() {
-      const base = this.goodsList.length ? this.goodsList : getFallbackGoodsList()
-      return sortGoodsList(base.map((item, index) => normalizeGoodsItem(item, index)), 'latest')
+      return sortGoodsList(this.goodsList.map((item, index) => normalizeGoodsItem(item, index)), 'latest')
     },
     recommendGoods() {
       const list = this.normalizedGoods.slice(0)
@@ -401,6 +416,10 @@ export default {
 
 .latest-head {
   margin-bottom: 20rpx;
+}
+
+.latest-empty-card {
+  padding: 12rpx;
 }
 
 .goods-grid {

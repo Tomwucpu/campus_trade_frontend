@@ -1,12 +1,13 @@
 <template>
-  <view class="product-card market-card" @click="$emit('click')">
-    <view class="product-cover">
+  <view class="product-card market-card" :class="{ 'without-image': !goods.imageUrl }" @click="$emit('click')">
+    <view v-if="goods.imageUrl" class="product-cover">
       <image class="product-image" :src="goods.imageUrl" mode="aspectFill"></image>
       <view class="product-cover-shadow"></view>
       <view class="product-condition">{{ goods.conditionLabel }}</view>
-      <view class="product-favorite" @click.stop="toggleFavorite">
-        {{ favoriteState ? '♥' : '♡' }}
-      </view>
+    </view>
+
+    <view class="product-favorite" @click.stop="toggleFavorite">
+      {{ favoriteState ? '已' : '藏' }}
     </view>
 
     <view class="product-body">
@@ -97,6 +98,11 @@ export default {
 <style scoped>
 .product-card {
   overflow: hidden;
+  position: relative;
+}
+
+.product-card.without-image {
+  padding-top: 0;
 }
 
 .product-cover {
@@ -139,8 +145,10 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28rpx;
+  font-size: 24rpx;
   color: #f77f00;
+  z-index: 2;
+  box-shadow: 0 8rpx 16rpx rgba(44, 62, 80, 0.08);
 }
 
 .product-body {

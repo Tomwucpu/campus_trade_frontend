@@ -14,48 +14,6 @@ const CATEGORY_META = [
   { id: 6, value: 6, name: '其他', shortName: '其他', icon: '✨', key: 'other', keywords: ['其他'] }
 ]
 
-const CATEGORY_IMAGES = {
-  books: [
-    'https://images.unsplash.com/photo-1717505694161-6fd17c5994bb?w=800',
-    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800',
-    'https://images.unsplash.com/photo-1526243741027-444d633d7365?w=800'
-  ],
-  electronics: [
-    'https://images.unsplash.com/photo-1697055656373-720a6a0e9b4c?w=800',
-    'https://images.unsplash.com/photo-1714576956012-8ee72df0e0ea?w=800',
-    'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?w=800'
-  ],
-  sports: [
-    'https://images.unsplash.com/photo-1763753743569-ed1724044e2f?w=800',
-    'https://images.unsplash.com/photo-1686435171260-3bff2e93ec59?w=800',
-    'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800'
-  ],
-  daily: [
-    'https://images.unsplash.com/photo-1766411503488-f90eef1124bb?w=800',
-    'https://images.unsplash.com/photo-1525397053281-a37d8a2ff7ce?w=800',
-    'https://images.unsplash.com/photo-1757256137041-0aab889db199?w=800'
-  ],
-  fashion: [
-    'https://images.unsplash.com/photo-1766008122479-0bf425daecce?w=800',
-    'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800',
-    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800'
-  ],
-  other: [
-    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800',
-    'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800',
-    'https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800'
-  ]
-}
-
-const FALLBACK_GOODS = [
-  { id: 101, title: '高等数学教材（上下册）第七版 考研必备', price: 35, originalPrice: 86, conditionLevel: 9, categoryId: 2, sellerName: '张同学', viewCount: 128, createdAt: '2026-03-20 08:10:00', description: '书本保存完好，适合考研和大一基础课复习。' },
-  { id: 102, title: '捷安特自行车 24速山地车 校园代步', price: 380, originalPrice: 1200, conditionLevel: 8, categoryId: 5, sellerName: '李同学', viewCount: 96, createdAt: '2026-03-20 07:30:00', description: '宿舍搬离转卖，车况稳定，校内面交。' },
-  { id: 103, title: '宿舍台灯 护眼学习灯 可调光', price: 45, originalPrice: 120, conditionLevel: 9, categoryId: 3, sellerName: '王同学', viewCount: 52, createdAt: '2026-03-20 06:40:00', description: '亮度可调，适合晚自习和宿舍阅读。' },
-  { id: 104, title: 'Nike 双肩包 大容量书包 通勤必备', price: 120, originalPrice: 399, conditionLevel: 9, categoryId: 4, sellerName: '赵同学', viewCount: 67, createdAt: '2026-03-19 21:20:00', description: '容量大，拉链顺滑，日常通勤很好用。' },
-  { id: 105, title: 'AirPods Pro 二代 降噪耳机 国行', price: 680, originalPrice: 1899, conditionLevel: 9, categoryId: 1, sellerName: '孙同学', viewCount: 143, createdAt: '2026-03-19 19:00:00', description: '带充电盒和保护套，音质稳定。' },
-  { id: 106, title: '卡西欧计算器 fx-991CN 工程计算', price: 55, originalPrice: 150, conditionLevel: 10, categoryId: 1, sellerName: '周同学', viewCount: 39, createdAt: '2026-03-19 16:10:00', description: '考试必备，几乎全新。' }
-]
-
 const CONDITION_OPTIONS = [
   { value: 10, label: '全新' },
   { value: 9, label: '九成新' },
@@ -182,8 +140,12 @@ function resolveCategoryMeta(item = {}, seed = 0) {
   return CATEGORY_META[(seed % (CATEGORY_META.length - 1)) + 1]
 }
 
-function resolveImagePool(meta) {
-  return CATEGORY_IMAGES[meta.key] || CATEGORY_IMAGES.other
+function resolveItemImages(item = {}) {
+  const images = Array.isArray(item.images) ? item.images.filter(Boolean) : []
+  if (images.length) {
+    return uniqueList(images)
+  }
+  return item.imageUrl ? [item.imageUrl] : []
 }
 
 function createMessageTime(createdAt) {
@@ -256,25 +218,12 @@ export function resolveConditionLabel(level) {
 }
 
 export function resolveGoodsImage(item = {}, index = 0) {
-  if (item.imageUrl) {
-    return item.imageUrl
-  }
-  if (Array.isArray(item.images) && item.images.length) {
-    return item.images[0]
-  }
-  const seed = createSeed(item, index)
-  const meta = resolveCategoryMeta(item, seed)
-  return pickSeed(seed, resolveImagePool(meta))
+  const images = resolveItemImages(item)
+  return images[0] || ''
 }
 
 export function resolveGoodsGallery(item = {}, index = 0) {
-  if (Array.isArray(item.images) && item.images.length) {
-    return uniqueList(item.images).slice(0, 9)
-  }
-  const seed = createSeed(item, index)
-  const meta = resolveCategoryMeta(item, seed)
-  const pool = resolveImagePool(meta)
-  return uniqueList([resolveGoodsImage(item, index), ...pool]).slice(0, 3)
+  return resolveItemImages(item).slice(0, 9)
 }
 
 export function normalizeGoodsItem(item = {}, index = 0) {
@@ -445,7 +394,7 @@ export function getConditionOptions() {
 }
 
 export function getFallbackGoodsList() {
-  return FALLBACK_GOODS.map((item, index) => normalizeGoodsItem(item, index))
+  return []
 }
 
 export function getOrderStatusText(status) {

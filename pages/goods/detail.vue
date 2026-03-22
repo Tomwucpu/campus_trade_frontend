@@ -1,88 +1,122 @@
 <template>
   <view class="market-page detail-page" :class="themeClass">
-    <view class="detail-cover">
-      <swiper class="cover-swiper" circular @change="onSwiperChange">
-        <swiper-item v-for="(image, index) in detail.gallery" :key="`${detail.id}-${index}`">
-          <image class="cover-image" :src="image" mode="aspectFill"></image>
-        </swiper-item>
-      </swiper>
+    <template v-if="hasDetail">
+      <view v-if="hasGallery" class="detail-cover">
+        <swiper class="cover-swiper" circular @change="onSwiperChange">
+          <swiper-item v-for="(image, index) in detail.gallery" :key="`${detail.id}-${index}`">
+            <image class="cover-image" :src="image" mode="aspectFill"></image>
+          </swiper-item>
+        </swiper>
 
-      <view class="cover-top safe-top">
-        <view class="market-shell">
-          <view class="market-topbar">
-            <view class="market-back-btn transparent" @click="goBack">
-              <text class="market-back-symbol">&lt;</text>
+        <view class="cover-top safe-top">
+          <view class="market-shell">
+            <view class="market-topbar">
+              <view class="market-back-btn transparent" @click="goBack">
+                <text class="market-back-symbol">&lt;</text>
+              </view>
+              <view class="market-icon-btn transparent">...</view>
             </view>
-            <view class="market-icon-btn transparent">...</view>
           </view>
         </view>
+
+        <view class="cover-dots">
+          <view
+            v-for="(image, index) in detail.gallery"
+            :key="`dot-${index}`"
+            class="cover-dot"
+            :class="{ active: currentImageIndex === index }"
+          ></view>
+        </view>
       </view>
 
-      <view class="cover-dots">
-        <view
-          v-for="(image, index) in detail.gallery"
-          :key="`dot-${index}`"
-          class="cover-dot"
-          :class="{ active: currentImageIndex === index }"
-        ></view>
-      </view>
-    </view>
-
-    <view class="market-shell detail-shell">
-      <view class="market-card info-card">
-        <view class="price-row">
-          <view class="price-wrap">
-            <text class="detail-price market-price">¥{{ detail.priceText }}</text>
-            <text v-if="detail.originalPriceText" class="detail-origin">原价 ¥{{ detail.originalPriceText }}</text>
-            <text class="market-tag">{{ detail.conditionLabel }}</text>
+      <view v-else class="market-shell safe-top">
+        <view class="market-topbar">
+          <view class="market-back-btn" @click="goBack">
+            <text class="market-back-symbol">&lt;</text>
           </view>
-          <view class="detail-stats">{{ detail.viewCount }}次浏览 · {{ detail.favoriteCount }}人收藏</view>
-        </view>
-
-        <view class="detail-title">{{ detail.title }}</view>
-
-        <view class="detail-meta">
-          <view class="meta-item">发布时间 {{ detail.createdAtText }}</view>
-          <view class="meta-item">{{ detail.categoryLabel }}</view>
-          <view class="meta-item">{{ detail.campusLocation }}</view>
+          <view class="market-page-title">商品详情</view>
+          <view class="market-icon-btn placeholder-btn"></view>
         </view>
       </view>
 
-      <view class="market-card seller-card">
-        <view class="seller-main">
-          <view class="seller-avatar">{{ (detail.sellerName || '卖').slice(0, 1) }}</view>
-          <view class="seller-copy">
-            <view class="seller-name-row">
-              <text class="seller-name">{{ detail.sellerName }}</text>
-              <text class="seller-rating">★{{ detail.sellerRating }}</text>
+      <view class="market-shell detail-shell" :class="{ 'without-cover': !hasGallery }">
+        <view class="market-card info-card">
+          <view class="price-row">
+            <view class="price-wrap">
+              <text class="detail-price market-price">¥{{ detail.priceText }}</text>
+              <text v-if="detail.originalPriceText" class="detail-origin">原价 ¥{{ detail.originalPriceText }}</text>
+              <text class="market-tag">{{ detail.conditionLabel }}</text>
             </view>
-            <view class="seller-subtitle">{{ detail.sellerStudentNo }} · {{ detail.campusLocation }}</view>
+            <view class="detail-stats">{{ detail.viewCount }}次浏览 · {{ detail.favoriteCount }}人收藏</view>
+          </view>
+
+          <view class="detail-title">{{ detail.title }}</view>
+
+          <view class="detail-meta">
+            <view class="meta-item">发布时间 {{ detail.createdAtText }}</view>
+            <view class="meta-item">{{ detail.categoryLabel }}</view>
+            <view class="meta-item">{{ detail.campusLocation }}</view>
           </view>
         </view>
-        <view class="seller-action">查看主页</view>
+
+        <view class="market-card seller-card">
+          <view class="seller-main">
+            <view class="seller-avatar">{{ (detail.sellerName || '卖').slice(0, 1) }}</view>
+            <view class="seller-copy">
+              <view class="seller-name-row">
+                <text class="seller-name">{{ detail.sellerName }}</text>
+                <text class="seller-rating">★{{ detail.sellerRating }}</text>
+              </view>
+              <view class="seller-subtitle">{{ detail.sellerStudentNo }} · {{ detail.campusLocation }}</view>
+            </view>
+          </view>
+          <view class="seller-action">查看主页</view>
+        </view>
+
+        <view class="market-card content-card">
+          <view class="market-section-title">商品描述</view>
+          <view class="content-text">{{ detail.description }}</view>
+        </view>
       </view>
 
-      <view class="market-card content-card">
-        <view class="market-section-title">商品描述</view>
-        <view class="content-text">{{ detail.description }}</view>
+      <view class="buy-bar market-card">
+        <view class="buy-tools">
+          <view class="tool-item" @click="toggleFavorite">
+            <text class="tool-icon">{{ favorite ? '已' : '藏' }}</text>
+            <text class="tool-label">收藏</text>
+          </view>
+          <view class="tool-item" @click="openSellerChatSafe">
+            <text class="tool-icon">聊</text>
+            <text class="tool-label">联系</text>
+          </view>
+        </view>
+        <button class="market-primary-btn buy-btn" :disabled="actionDisabled" @click="createTradeOrder">
+          {{ actionText }}
+        </button>
       </view>
-    </view>
+    </template>
 
-    <view class="buy-bar market-card">
-      <view class="buy-tools">
-        <view class="tool-item" @click="toggleFavorite">
-          <text class="tool-icon">{{ favorite ? '已' : '藏' }}</text>
-          <text class="tool-label">收藏</text>
-        </view>
-        <view class="tool-item" @click="openSellerChatSafe">
-          <text class="tool-icon">聊</text>
-          <text class="tool-label">联系</text>
+    <template v-else>
+      <view class="market-shell safe-top">
+        <view class="market-topbar">
+          <view class="market-back-btn" @click="goBack">
+            <text class="market-back-symbol">&lt;</text>
+          </view>
+          <view class="market-page-title">商品详情</view>
+          <view class="market-icon-btn placeholder-btn"></view>
         </view>
       </view>
-      <button class="market-primary-btn buy-btn" :disabled="actionDisabled" @click="createTradeOrder">
-        {{ actionText }}
-      </button>
-    </view>
+
+      <view class="market-shell detail-empty-shell">
+        <view class="market-card detail-empty-card">
+          <EmptyState
+            icon="📦"
+            title="暂无商品数据"
+            description="当前没有可展示的商品信息，请在后端服务可用后再试。"
+          />
+        </view>
+      </view>
+    </template>
   </view>
 </template>
 
@@ -91,16 +125,17 @@ import { openConversationByGoods } from '../../api/chat'
 import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
+import EmptyState from '../../components/EmptyState.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import { useOrderStore } from '../../store/order'
-import {
-  getFallbackGoodsList,
-  normalizeGoodsItem
-} from '../../utils/market'
+import { normalizeGoodsItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
+  components: {
+    EmptyState
+  },
   data() {
     return {
       id: '',
@@ -112,22 +147,31 @@ export default {
       authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
       orderStore: useOrderStore(),
-      detail: normalizeGoodsItem(getFallbackGoodsList()[0] || {}, 0)
+      detail: null
     }
   },
   computed: {
+    hasDetail() {
+      return !!(this.detail && (this.detail.id || this.detail.id === 0))
+    },
+    hasGallery() {
+      return this.hasDetail && Array.isArray(this.detail.gallery) && this.detail.gallery.length > 0
+    },
     favorite() {
       return this.favoriteState
     },
     isOwnGoods() {
+      if (!this.hasDetail) {
+        return false
+      }
       return String(this.authStore.sync().getUserId() || '') === String(this.detail.sellerId || '')
     },
     actionDisabled() {
-      return !this.detail.id || this.isOwnGoods || this.detail.status !== 'ON_SALE'
+      return !this.hasDetail || this.isOwnGoods || this.detail.status !== 'ON_SALE'
     },
     actionText() {
-      if (!this.detail.id) {
-        return '加载中'
+      if (!this.hasDetail) {
+        return '暂无商品'
       }
       if (this.isOwnGoods) {
         return '这是我发布的'
@@ -150,13 +194,20 @@ export default {
   onShow() {
     syncThemePage(this)
     this.authStore.sync()
-    this.favoriteState = this.detail.isFavorite === true
+    this.favoriteState = this.hasDetail && this.detail.isFavorite === true
   },
   methods: {
+    clearDetail() {
+      this.detail = null
+      this.favoriteState = false
+      this.currentImageIndex = 0
+    },
     onSwiperChange(event) {
       this.currentImageIndex = event.detail.current || 0
     },
     fetchDetail() {
+      this.clearDetail()
+
       if (!this.id) {
         uni.showToast({ title: '缺少商品编号', icon: 'none' })
         return
@@ -164,8 +215,8 @@ export default {
 
       getGoodsDetail(this.id)
         .then((res) => {
-          if (res && res.code === 0) {
-            this.detail = normalizeGoodsItem(res.data || {}, 0)
+          if (res && res.code === 0 && res.data && (res.data.id || res.data.id === 0)) {
+            this.detail = normalizeGoodsItem(res.data, 0)
             this.favoriteState = this.detail.isFavorite === true
             return
           }
@@ -176,6 +227,10 @@ export default {
         })
     },
     toggleFavorite() {
+      if (!this.hasDetail) {
+        uni.showToast({ title: '暂无商品可收藏', icon: 'none' })
+        return
+      }
       if (!this.ensureLogin()) {
         return
       }
@@ -223,7 +278,7 @@ export default {
         uni.showToast({ title: '这是你自己发布的商品', icon: 'none' })
         return
       }
-      if (!this.detail.id) {
+      if (!this.hasDetail) {
         uni.showToast({ title: '商品信息加载中', icon: 'none' })
         return
       }
@@ -289,6 +344,10 @@ export default {
   padding-bottom: 180rpx;
 }
 
+.placeholder-btn {
+  visibility: hidden;
+}
+
 .detail-cover {
   position: relative;
   height: 720rpx;
@@ -335,6 +394,18 @@ export default {
   margin-top: -34rpx;
   position: relative;
   z-index: 2;
+}
+
+.detail-shell.without-cover {
+  margin-top: 24rpx;
+}
+
+.detail-empty-shell {
+  padding-top: 24rpx;
+}
+
+.detail-empty-card {
+  padding: 12rpx;
 }
 
 .info-card,

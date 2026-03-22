@@ -35,9 +35,9 @@
       />
 
       <view v-else class="goods-list">
-        <view v-for="item in displayList" :key="item.id" class="market-card goods-card" @click="openDetail(item.id)">
-          <view class="goods-row">
-            <image class="goods-image" :src="item.imageUrl" mode="aspectFill"></image>
+          <view v-for="item in displayList" :key="item.id" class="market-card goods-card" @click="openDetail(item.id)">
+          <view class="goods-row" :class="{ 'without-image': !item.imageUrl }">
+            <image v-if="item.imageUrl" class="goods-image" :src="item.imageUrl" mode="aspectFill"></image>
             <view class="goods-main">
               <view class="goods-title">{{ item.title }}</view>
               <view class="goods-price market-price">¥{{ item.priceText }}</view>
@@ -290,6 +290,10 @@ export default {
   display: flex;
   gap: 18rpx;
   align-items: center;
+}
+
+.goods-row.without-image {
+  gap: 0;
 }
 
 .goods-actions {

@@ -119,7 +119,6 @@ import {
   filterGoodsList,
   getConditionOptions,
   getDefaultCategoryList,
-  getFallbackGoodsList,
   normalizeGoodsItem,
   patchGoodsFavoriteState
 } from '../../utils/market'
@@ -157,8 +156,7 @@ export default {
       return getConditionOptions().map((item) => item.label)
     },
     displayList() {
-      const source = this.list.length ? this.list : getFallbackGoodsList()
-      const normalized = source.map((item, index) => normalizeGoodsItem(item, index))
+      const normalized = this.list.map((item, index) => normalizeGoodsItem(item, index))
       return filterGoodsList(normalized, {
         keyword: this.keyword,
         categoryId: this.categoryId,
