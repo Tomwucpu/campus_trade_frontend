@@ -22,6 +22,13 @@ export function openConversationByGoods(goodsId) {
   })
 }
 
+export function openConversationByOrder(orderId) {
+  return request({
+    url: `/chat/conversations/from-order/${orderId}`,
+    method: 'POST'
+  })
+}
+
 export function getConversationDetail(id) {
   return request({
     url: `/chat/conversations/${id}`,

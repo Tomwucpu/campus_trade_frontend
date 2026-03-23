@@ -50,8 +50,14 @@
           </view>
 
           <view class="order-actions">
-            <button class="market-secondary-btn action-btn" @click.stop="handleSecondaryAction(item)">
-              {{ secondaryActionLabel(item) }}
+            <button class="market-secondary-btn action-btn" @click.stop="openOrderConversation(item)">
+              {{ contactActionLabel(item) }}
+            </button>
+            <button v-if="canCancel(item)" class="market-ghost-btn action-btn" @click.stop="cancelPendingOrder(item)">
+              取消订单
+            </button>
+            <button v-if="canDelete(item)" class="market-ghost-btn action-btn" @click.stop="confirmDelete(item)">
+              删除订单
             </button>
             <button class="market-primary-btn action-btn" @click.stop="handlePrimaryAction(item)">
               {{ primaryActionLabel(item) }}
@@ -66,6 +72,7 @@
 </template>
 
 <script>
+import { openConversationByOrder } from '../../api/chat'
 import { cancelOrder, completeOrder, deleteOrder, getOrderList, payOrder, shipOrder } from '../../api/order'
 import AppTabBar from '../../components/AppTabBar.vue'
 import EmptyState from '../../components/EmptyState.vue'
@@ -172,14 +179,11 @@ export default {
       }
       return '查看详情'
     },
-    secondaryActionLabel(item) {
-      if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
-        return '取消订单'
-      }
-      if (this.canDelete(item)) {
-        return '删除订单'
-      }
-      return '联系对方'
+    contactActionLabel(item) {
+      return item.roleType === 'SELLER' ? '联系买家' : '联系商家'
+    },
+    canCancel(item) {
+      return item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT'
     },
     canDelete(item) {
       return ['COMPLETED', 'CANCELLED'].includes(item.status)
@@ -199,16 +203,26 @@ export default {
       }
       this.openOrder(item)
     },
-    handleSecondaryAction(item) {
-      if (item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT') {
-        this.runAction(() => cancelOrder(item.id), item, '订单已取消')
+    cancelPendingOrder(item) {
+      this.runAction(() => cancelOrder(item.id), item, '订单已取消')
+    },
+    openOrderConversation(item) {
+      if (!item || !item.id) {
+        uni.showToast({ title: '缺少订单信息', icon: 'none' })
         return
       }
-      if (this.canDelete(item)) {
-        this.confirmDelete(item)
-        return
-      }
-      uni.showToast({ title: `请与${item.counterpartName}继续沟通`, icon: 'none' })
+
+      openConversationByOrder(item.id)
+        .then((res) => {
+          if (res && res.code === 0 && res.data && res.data.id) {
+            uni.navigateTo({ url: `/pages/chat/detail?id=${res.data.id}` })
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '暂时无法进入聊天', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '暂时无法进入聊天', icon: 'none' })
+        })
     },
     confirmDelete(item) {
       uni.showModal({
@@ -233,13 +247,13 @@ export default {
         }
       })
     },
-    runAction(action, item, title) {
+    runAction(action, item, successTitle = '操作成功') {
       action()
         .then((res) => {
           if (res && res.code === 0) {
             const nextOrder = normalizeOrderItem(res.data || item, 0)
             this.orderStore.setCurrentOrder(nextOrder)
-            uni.showToast({ title: res.message || '操作成功', icon: 'success' })
+            uni.showToast({ title: res.message || successTitle, icon: 'success' })
             this.fetchList()
             return
           }
@@ -371,10 +385,12 @@ export default {
 
 .order-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 14rpx;
 }
 
 .action-btn {
   flex: 1;
+  min-width: 200rpx;
 }
 </style>
