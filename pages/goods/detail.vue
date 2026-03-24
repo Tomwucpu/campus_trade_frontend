@@ -4,7 +4,7 @@
       <view v-if="hasGallery" class="detail-cover">
         <swiper class="cover-swiper" circular @change="onSwiperChange">
           <swiper-item v-for="(image, index) in detail.gallery" :key="`${detail.id}-${index}`">
-            <image class="cover-image" :src="image" mode="aspectFill"></image>
+            <image class="cover-image" :src="image" mode="aspectFill" @click="previewGallery(index)"></image>
           </swiper-item>
         </swiper>
 
@@ -117,6 +117,13 @@
         </view>
       </view>
     </template>
+    <ImagePreviewer
+      :visible="previewVisible"
+      :images="hasGallery ? detail.gallery : []"
+      :initial-index="previewIndex"
+      @close="closePreview"
+      @change="handlePreviewChange"
+    />
   </view>
 </template>
 
@@ -126,6 +133,7 @@ import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
 import EmptyState from '../../components/EmptyState.vue'
+import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import { useOrderStore } from '../../store/order'
@@ -134,7 +142,8 @@ import { syncThemePage } from '../../utils/theme'
 
 export default {
   components: {
-    EmptyState
+    EmptyState,
+    ImagePreviewer
   },
   data() {
     return {
@@ -143,6 +152,8 @@ export default {
       theme: 'light',
       themeClass: 'theme-light',
       currentImageIndex: 0,
+      previewVisible: false,
+      previewIndex: 0,
       favoriteState: false,
       authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
@@ -196,14 +207,41 @@ export default {
     this.authStore.sync()
     this.favoriteState = this.hasDetail && this.detail.isFavorite === true
   },
+  onBackPress() {
+    if (!this.previewVisible) {
+      return false
+    }
+    this.closePreview()
+    return true
+  },
   methods: {
     clearDetail() {
       this.detail = null
       this.favoriteState = false
       this.currentImageIndex = 0
+      this.previewVisible = false
+      this.previewIndex = 0
     },
     onSwiperChange(event) {
       this.currentImageIndex = event.detail.current || 0
+    },
+    previewGallery(index = 0) {
+      if (!this.hasGallery) {
+        return
+      }
+
+      const urls = this.detail.gallery.filter(Boolean)
+      if (!urls.length) {
+        return
+      }
+      this.previewIndex = urls[index] ? index : 0
+      this.previewVisible = true
+    },
+    handlePreviewChange(index = 0) {
+      this.previewIndex = index
+    },
+    closePreview() {
+      this.previewVisible = false
     },
     fetchDetail() {
       this.clearDetail()
@@ -325,6 +363,11 @@ export default {
         })
     },
     goBack() {
+      if (this.previewVisible) {
+        this.closePreview()
+        return
+      }
+
       if (this.fromPublish) {
         uni.reLaunch({ url: '/pages/index/index' })
         return

@@ -19,9 +19,9 @@
         </view>
 
         <view class="image-grid">
-          <view v-for="(item, index) in imageList" :key="`${item}-${index}`" class="image-item">
+          <view v-for="(item, index) in imageList" :key="`${item}-${index}`" class="image-item" @click="previewImages(index)">
             <image class="image-preview" :src="item" mode="aspectFill"></image>
-            <view class="image-remove" @click="removeImage(index)">×</view>
+            <view class="image-remove" @click.stop="removeImage(index)">×</view>
           </view>
           <view v-if="imageList.length < 9" class="image-uploader" @click="chooseImages">
             <text class="upload-icon">+</text>
@@ -249,6 +249,13 @@
         </view>
       </view>
     </view>
+    <ImagePreviewer
+      :visible="previewVisible"
+      :images="imageList"
+      :initial-index="previewIndex"
+      @close="closePreview"
+      @change="handlePreviewChange"
+    />
   </view>
 </template>
 
@@ -269,6 +276,7 @@ import {
   getDefaultCategoryList,
   normalizeGoodsItem
 } from '../../utils/market'
+import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { syncThemePage } from '../../utils/theme'
 
 const DRAFT_KEY = 'goods_publish_draft'
@@ -302,6 +310,9 @@ function clampConditionLevel(value) {
 }
 
 export default {
+  components: {
+    ImagePreviewer
+  },
   data() {
     return {
       id: '',
@@ -319,6 +330,8 @@ export default {
       conditionOptions: getConditionOptions(),
       showCategoryPicker: false,
       showConditionPicker: false,
+      previewVisible: false,
+      previewIndex: 0,
       aiLoading: false,
       applyingSuggestion: false,
       submitting: false
@@ -442,6 +455,13 @@ export default {
   onShow() {
     syncThemePage(this)
   },
+  onBackPress() {
+    if (!this.previewVisible) {
+      return false
+    }
+    this.closePreview()
+    return true
+  },
   methods: {
     formatMoney(value) {
       const amount = Number(value)
@@ -550,6 +570,20 @@ export default {
       this.aiPanelVisible = false
       this.aiErrorMessage = ''
       this.saveDraft()
+    },
+    previewImages(index = 0) {
+      const urls = this.imageList.filter(Boolean)
+      if (!urls.length) {
+        return
+      }
+      this.previewIndex = urls[index] ? index : 0
+      this.previewVisible = true
+    },
+    handlePreviewChange(index = 0) {
+      this.previewIndex = index
+    },
+    closePreview() {
+      this.previewVisible = false
     },
     handleAiEntry() {
       if (this.aiLoading) {
@@ -787,6 +821,11 @@ export default {
       }
     },
     goBack() {
+      if (this.previewVisible) {
+        this.closePreview()
+        return
+      }
+
       if (this.showCategoryPicker) {
         this.showCategoryPicker = false
         return
