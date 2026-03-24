@@ -67,3 +67,25 @@ export function uploadGoodsImage(filePath) {
     name: 'file'
   })
 }
+
+export function createAiValuation(data) {
+  return request({
+    url: '/ai/valuations',
+    method: 'POST',
+    data
+  })
+}
+
+export function adoptAiValuation(id) {
+  return request({
+    url: `/ai/valuations/${id}/adopt`,
+    method: 'POST'
+  })
+}
+
+export function getAiValuationDetail(id) {
+  return request({
+    url: `/ai/valuations/${id}`,
+    method: 'GET'
+  })
+}
