@@ -28,99 +28,118 @@
             <text class="upload-text">上传图片</text>
           </view>
         </view>
-      </view>
 
-      <view class="market-card publish-card ai-card">
-        <view class="market-row-head ai-row-head">
-          <view>
-            <view class="market-section-title">智能识别估价</view>
-            <view class="market-section-subtitle">识别商品、成色和参考价格，结果仅供发布时参考。</view>
+        <view class="ai-entry-row">
+          <view class="ai-entry-copy">
+            <view class="ai-entry-title">智能估价</view>
+            <view class="ai-entry-caption">{{ aiEntryCaption }}</view>
           </view>
           <button
-            class="ai-trigger-btn"
+            class="ai-entry-btn"
+            :class="{ active: aiPanelVisible }"
             size="mini"
             :loading="aiLoading"
-            :disabled="aiLoading || !imageList.length"
-            @click="runAiValuation"
+            :disabled="aiLoading"
+            @click="handleAiEntry"
           >
-            {{ aiValuation ? '重新识别' : '开始识别' }}
+            <text class="ai-entry-label">{{ aiEntryText }}</text>
+            <text class="ai-entry-arrow" :class="{ open: aiPanelVisible }">⌄</text>
           </button>
         </view>
 
-        <view class="ai-tip">
-          识别失败不会影响正常发布。建议拍摄正面图、细节图和配件图，结果会更稳定。
-        </view>
-
-        <view v-if="!aiValuation" class="ai-empty">
-          <view class="ai-empty-title">还没有识别结果</view>
-          <view class="ai-empty-text">上传 1 到 3 张清晰商品图后，点击“开始识别”即可生成标题、成色和价格建议。</view>
-        </view>
-
-        <view v-else class="ai-result-card">
-          <view class="ai-result-header">
-            <view>
-              <view class="ai-item-name">{{ aiValuation.itemName || '未识别出具体商品' }}</view>
-              <view v-if="aiBrandModelText" class="ai-item-meta">{{ aiBrandModelText }}</view>
-            </view>
-            <view class="ai-confidence-chip" :class="`confidence-${aiValuation.confidenceLevel || 'medium'}`">
-              {{ aiConfidenceText }}
-            </view>
-          </view>
-
-          <view class="ai-metric-grid">
-            <view class="ai-metric">
-              <view class="ai-metric-label">建议分类</view>
-              <view class="ai-metric-value">{{ aiValuation.categoryNameSuggest || '待确认' }}</view>
-            </view>
-            <view class="ai-metric">
-              <view class="ai-metric-label">识别成色</view>
-              <view class="ai-metric-value">{{ aiValuation.conditionText || '待确认' }}</view>
-            </view>
-            <view class="ai-metric">
-              <view class="ai-metric-label">价格区间</view>
-              <view class="ai-metric-value ai-price-range">{{ priceRangeText || '待确认' }}</view>
-            </view>
-            <view class="ai-metric">
-              <view class="ai-metric-label">建议发布价</view>
-              <view class="ai-metric-value ai-price-strong">
-                {{ aiValuation.suggestedPrice ? `¥${formatMoney(aiValuation.suggestedPrice)}` : '待确认' }}
+        <view class="ai-reveal" :class="{ open: aiPanelVisible }">
+          <view class="ai-panel">
+            <view class="ai-panel-head">
+              <view>
+                <view class="ai-panel-title">智能识别估价</view>
+                <view class="ai-panel-subtitle">识别商品、成色和参考价格，结果仅供发布时参考。</view>
+              </view>
+              <view v-if="aiValuation" class="ai-confidence-chip" :class="`confidence-${aiValuation.confidenceLevel || 'medium'}`">
+                {{ aiConfidenceText }}
               </view>
             </view>
-          </view>
 
-          <view v-if="aiResultIssues.length" class="ai-block">
-            <view class="ai-block-title">可见问题</view>
-            <view class="ai-badge-list">
-              <text v-for="(item, index) in aiResultIssues" :key="`issue-${index}`" class="ai-badge danger">
-                {{ item }}
-              </text>
+            <view v-if="aiLoading" class="ai-loading-card">
+              <view class="ai-loading-orb"></view>
+              <view class="ai-loading-title">正在分析商品图片</view>
+              <view class="ai-loading-text">会结合前 3 张代表图生成成色、分类和价格建议，请稍等片刻。</view>
             </view>
-          </view>
 
-          <view v-if="aiSuggestions.length" class="ai-block">
-            <view class="ai-block-title">补充建议</view>
-            <view class="ai-list">
-              <view v-for="(item, index) in aiSuggestions" :key="`suggestion-${index}`" class="ai-list-item">
-                <text class="ai-list-dot"></text>
-                <text class="ai-list-text">{{ item }}</text>
+            <view v-else-if="!aiValuation" class="ai-empty">
+              <view class="ai-empty-title">{{ aiEmptyTitle }}</view>
+              <view class="ai-empty-text">{{ aiEmptyText }}</view>
+
+              <view class="ai-actions single">
+                <button class="market-primary-btn ai-primary-btn" :disabled="!imageList.length" @click="runAiValuation">
+                  开始识别
+                </button>
               </view>
             </view>
-          </view>
 
-          <view class="ai-note">
-            价格会受到学校区域、附件完整度和图片清晰度影响，请在发布前再手动确认一次。
-          </view>
+            <view v-else class="ai-result-card">
+              <view class="ai-result-header">
+                <view>
+                  <view class="ai-item-name">{{ aiValuation.itemName || '未识别出具体商品' }}</view>
+                  <view v-if="aiBrandModelText" class="ai-item-meta">{{ aiBrandModelText }}</view>
+                </view>
+              </view>
 
-          <view class="ai-actions">
-            <button class="ai-secondary-btn" :disabled="aiLoading" @click="runAiValuation">重新识别</button>
-            <button
-              class="market-primary-btn ai-primary-btn"
-              :loading="applyingSuggestion"
-              :disabled="applyingSuggestion"
-              @click="applyAiSuggestion"
-            >
-              应用建议
-            </button>
+              <view class="ai-metric-grid">
+                <view class="ai-metric">
+                  <view class="ai-metric-label">建议分类</view>
+                  <view class="ai-metric-value">{{ aiValuation.categoryNameSuggest || '待确认' }}</view>
+                </view>
+                <view class="ai-metric">
+                  <view class="ai-metric-label">识别成色</view>
+                  <view class="ai-metric-value">{{ aiValuation.conditionText || '待确认' }}</view>
+                </view>
+                <view class="ai-metric">
+                  <view class="ai-metric-label">价格区间</view>
+                  <view class="ai-metric-value ai-price-range">{{ priceRangeText || '待确认' }}</view>
+                </view>
+                <view class="ai-metric">
+                  <view class="ai-metric-label">建议发布价</view>
+                  <view class="ai-metric-value ai-price-strong">
+                    {{ aiValuation.suggestedPrice ? `¥${formatMoney(aiValuation.suggestedPrice)}` : '待确认' }}
+                  </view>
+                </view>
+              </view>
+
+              <view v-if="aiResultIssues.length" class="ai-block">
+                <view class="ai-block-title">可见问题</view>
+                <view class="ai-badge-list">
+                  <text v-for="(item, index) in aiResultIssues" :key="`issue-${index}`" class="ai-badge danger">
+                    {{ item }}
+                  </text>
+                </view>
+              </view>
+
+              <view v-if="aiSuggestions.length" class="ai-block">
+                <view class="ai-block-title">补充建议</view>
+                <view class="ai-list">
+                  <view v-for="(item, index) in aiSuggestions" :key="`suggestion-${index}`" class="ai-list-item">
+                    <text class="ai-list-dot"></text>
+                    <text class="ai-list-text">{{ item }}</text>
+                  </view>
+                </view>
+              </view>
+
+              <view class="ai-note">
+                价格会受到学校区域、附件完整度和图片清晰度影响，请在发布前再手动确认一次。
+              </view>
+
+              <view class="ai-actions">
+                <button class="ai-secondary-btn" :disabled="aiLoading" @click="runAiValuation">重新识别</button>
+                <button
+                  class="market-primary-btn ai-primary-btn"
+                  :loading="applyingSuggestion"
+                  :disabled="applyingSuggestion"
+                  @click="applyAiSuggestion"
+                >
+                  应用建议
+                </button>
+              </view>
+            </view>
           </view>
         </view>
       </view>
@@ -293,6 +312,8 @@ export default {
       goodsStore: useGoodsStore(),
       form: createDefaultForm(),
       aiValuation: null,
+      aiPanelVisible: false,
+      aiErrorMessage: '',
       categoryTouched: false,
       categories: getDefaultCategoryList(),
       conditionOptions: getConditionOptions(),
@@ -338,6 +359,33 @@ export default {
       return this.isEdit
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
         : '提交后商品会立即进入列表展示，图片会一起保存到本地上传目录。'
+    },
+    aiEntryText() {
+      if (!this.imageList.length) {
+        return '智能估价'
+      }
+      if (this.aiPanelVisible) {
+        return '收起估价'
+      }
+      return this.aiValuation ? '查看估价' : '智能估价'
+    },
+    aiEntryCaption() {
+      if (!this.imageList.length) {
+        return '先上传商品图片，再使用智能估价。'
+      }
+      if (this.aiLoading) {
+        return '正在分析图片，请稍等片刻。'
+      }
+      if (this.aiValuation) {
+        return '已生成一份价格建议，点开即可查看。'
+      }
+      return '点开后可生成成色、分类和价格建议。'
+    },
+    aiEmptyTitle() {
+      return this.aiErrorMessage ? '这次识别没有成功' : '准备开始智能估价'
+    },
+    aiEmptyText() {
+      return this.aiErrorMessage || '建议拍摄正面图、细节图和配件图，识别会优先读取前 3 张代表图。'
     },
     aiBrandModelText() {
       if (!this.aiValuation) {
@@ -418,12 +466,16 @@ export default {
         const merged = { ...createDefaultDraft(), ...draft }
         this.form = { ...createDefaultForm(), ...merged.form }
         this.aiValuation = merged.aiValuation || null
+        this.aiPanelVisible = false
+        this.aiErrorMessage = ''
         this.categoryTouched = Boolean(merged.categoryTouched)
         return
       }
 
       this.form = draft && typeof draft === 'object' ? { ...createDefaultForm(), ...draft } : createDefaultForm()
       this.aiValuation = null
+      this.aiPanelVisible = false
+      this.aiErrorMessage = ''
       this.categoryTouched = false
     },
     ensureLoggedIn() {
@@ -466,6 +518,8 @@ export default {
               images: Array.isArray(res.data.images) && res.data.images.length ? res.data.images.slice(0, 9) : []
             }
             this.aiValuation = null
+            this.aiPanelVisible = false
+            this.aiErrorMessage = ''
             this.categoryTouched = true
             this.saveDraft()
             return
@@ -479,11 +533,13 @@ export default {
     chooseImages() {
       uni.chooseImage({
         count: 9 - this.imageList.length,
-        sizeType: ['compressed'],
+        sizeType: ['original'],
         sourceType: ['album', 'camera'],
         success: (res) => {
           this.form.images = [...this.imageList, ...(res.tempFilePaths || [])].slice(0, 9)
           this.aiValuation = null
+          this.aiPanelVisible = false
+          this.aiErrorMessage = ''
           this.saveDraft()
         }
       })
@@ -491,7 +547,19 @@ export default {
     removeImage(index) {
       this.form.images = this.imageList.filter((item, currentIndex) => currentIndex !== index)
       this.aiValuation = null
+      this.aiPanelVisible = false
+      this.aiErrorMessage = ''
       this.saveDraft()
+    },
+    handleAiEntry() {
+      if (this.aiLoading) {
+        return
+      }
+      if (!this.imageList.length) {
+        uni.showToast({ title: '请先上传商品图片', icon: 'none' })
+        return
+      }
+      this.aiPanelVisible = !this.aiPanelVisible
     },
     selectCategory(item) {
       this.form.categoryId = item.id
@@ -556,6 +624,8 @@ export default {
         return
       }
 
+      this.aiPanelVisible = true
+      this.aiErrorMessage = ''
       this.aiLoading = true
       try {
         const images = await this.uploadPendingImages()
@@ -569,6 +639,7 @@ export default {
 
         if (res && res.code === 0 && res.data) {
           this.aiValuation = res.data
+          this.aiErrorMessage = ''
           this.saveDraft()
           uni.hideLoading()
           uni.showToast({ title: res.message || '识别成功', icon: 'success' })
@@ -576,8 +647,9 @@ export default {
         }
         throw new Error((res && res.message) || 'AI 识别失败')
       } catch (error) {
+        this.aiErrorMessage = error && error.message ? error.message : 'AI 识别失败'
         uni.hideLoading()
-        uni.showToast({ title: error && error.message ? error.message : 'AI 识别失败', icon: 'none' })
+        uni.showToast({ title: this.aiErrorMessage, icon: 'none' })
       } finally {
         uni.hideLoading()
         this.aiLoading = false
@@ -694,6 +766,8 @@ export default {
           this.goodsStore.setLastViewedId(targetId)
           this.form = createDefaultForm()
           this.aiValuation = null
+          this.aiPanelVisible = false
+          this.aiErrorMessage = ''
           this.categoryTouched = false
           uni.hideLoading()
           uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
@@ -812,61 +886,193 @@ export default {
   color: #6c757d;
 }
 
-.ai-card {
-  background:
-    radial-gradient(circle at top right, rgba(45, 106, 79, 0.12), transparent 32%),
-    linear-gradient(180deg, #fbfdfc 0%, #f5faf7 100%);
-  border: 1rpx solid rgba(45, 106, 79, 0.08);
+.ai-entry-row {
+  margin-top: 22rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18rpx;
 }
 
-.ai-row-head {
-  align-items: flex-start;
+.ai-entry-copy {
+  flex: 1;
+  min-width: 0;
 }
 
-.ai-trigger-btn,
+.ai-entry-title {
+  font-size: 25rpx;
+  font-weight: 700;
+  color: #244638;
+}
+
+.ai-entry-caption {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: #70807a;
+}
+
+.ai-entry-btn,
 .ai-secondary-btn,
 .ai-primary-btn {
   margin: 0;
 }
 
-.ai-trigger-btn::after,
+.ai-entry-btn::after,
 .ai-secondary-btn::after,
 .ai-primary-btn::after {
   border: none;
 }
 
-.ai-trigger-btn {
-  min-width: 168rpx;
-  height: 68rpx;
-  line-height: 68rpx;
-  padding: 0 24rpx;
+.ai-entry-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  min-width: 188rpx;
+  height: 74rpx;
+  line-height: 74rpx;
+  padding: 0 26rpx 0 30rpx;
   border-radius: 999rpx;
-  background: #2d6a4f;
+  background: linear-gradient(135deg, #214738 0%, #2d6a4f 100%);
+  box-shadow: 0 16rpx 32rpx rgba(45, 106, 79, 0.18);
   color: #ffffff;
   font-size: 24rpx;
-  font-weight: 600;
+  font-weight: 700;
+  transform: translateY(0);
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    opacity 220ms ease;
 }
 
-.ai-trigger-btn[disabled] {
+.ai-entry-btn[disabled] {
   opacity: 0.6;
 }
 
-.ai-tip {
-  margin-top: 18rpx;
-  padding: 18rpx 20rpx;
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.72);
-  color: #5f6f68;
-  font-size: 22rpx;
-  line-height: 1.7;
+.ai-entry-btn.active {
+  transform: translateY(-4rpx);
+  box-shadow: 0 22rpx 38rpx rgba(45, 106, 79, 0.22);
 }
 
+.ai-entry-label {
+  white-space: nowrap;
+}
+
+.ai-entry-arrow {
+  font-size: 24rpx;
+  transform: rotate(0deg);
+  transform-origin: center;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ai-entry-arrow.open {
+  transform: rotate(180deg);
+}
+
+.ai-reveal {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(-18rpx);
+  transform-origin: top center;
+  transition:
+    max-height 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 320ms ease,
+    opacity 220ms ease,
+    transform 320ms ease;
+}
+
+.ai-reveal.open {
+  max-height: 4000rpx;
+  margin-top: 22rpx;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.ai-panel {
+  padding: 26rpx;
+  border-radius: 28rpx;
+  background:
+    radial-gradient(circle at top right, rgba(45, 106, 79, 0.12), transparent 36%),
+    linear-gradient(180deg, #fbfdfc 0%, #f4faf6 100%);
+  border: 1rpx solid rgba(45, 106, 79, 0.08);
+  box-shadow: 0 20rpx 44rpx rgba(36, 70, 56, 0.08);
+}
+
+.ai-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.ai-panel-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #244638;
+}
+
+.ai-panel-subtitle {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #698078;
+}
+
+.ai-loading-card,
 .ai-empty {
   margin-top: 20rpx;
   padding: 28rpx 24rpx;
   border-radius: 22rpx;
   background: rgba(255, 255, 255, 0.88);
-  border: 2rpx dashed rgba(45, 106, 79, 0.14);
+  border: 2rpx solid rgba(45, 106, 79, 0.1);
+}
+
+.ai-loading-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-loading-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  transform: translateX(-100%);
+  animation: aiShimmer 1.6s linear infinite;
+}
+
+.ai-loading-orb {
+  width: 78rpx;
+  height: 78rpx;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 35%),
+    linear-gradient(135deg, #2d6a4f 0%, #72b38d 100%);
+  box-shadow: 0 16rpx 30rpx rgba(45, 106, 79, 0.18);
+  animation: aiPulse 1.8s ease-in-out infinite;
+}
+
+.ai-loading-title {
+  position: relative;
+  z-index: 1;
+  margin-top: 18rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #244638;
+}
+
+.ai-loading-text {
+  position: relative;
+  z-index: 1;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #698078;
 }
 
 .ai-empty-title {
@@ -884,10 +1090,6 @@ export default {
 
 .ai-result-card {
   margin-top: 20rpx;
-  padding: 24rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 18rpx 36rpx rgba(36, 70, 56, 0.06);
 }
 
 .ai-result-header {
@@ -1040,6 +1242,10 @@ export default {
   gap: 16rpx;
 }
 
+.ai-actions.single {
+  display: block;
+}
+
 .ai-secondary-btn,
 .ai-primary-btn {
   flex: 1;
@@ -1054,13 +1260,19 @@ export default {
   color: #2d6a4f;
 }
 
-.field-group + .field-group {
-  margin-top: 24rpx;
+.ai-actions.single .ai-primary-btn {
+  width: 100%;
+}
+
+.field-group {
+  margin-top: 16rpx;
 }
 
 .field-inline {
   display: flex;
+  align-items: flex-start;
   gap: 16rpx;
+  margin-top: 0;
 }
 
 .field-group.half {
@@ -1073,6 +1285,27 @@ export default {
   color: #2c3e50;
   margin-bottom: 14rpx;
   font-weight: 700;
+}
+
+@keyframes aiPulse {
+  0%,
+  100% {
+    transform: scale(0.94);
+    box-shadow: 0 16rpx 30rpx rgba(45, 106, 79, 0.18);
+  }
+  50% {
+    transform: scale(1);
+    box-shadow: 0 22rpx 40rpx rgba(45, 106, 79, 0.24);
+  }
+}
+
+@keyframes aiShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .field-count {
