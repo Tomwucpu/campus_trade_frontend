@@ -280,6 +280,9 @@ import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { syncThemePage } from '../../utils/theme'
 
 const DRAFT_KEY = 'goods_publish_draft'
+const UPLOAD_COMPRESS_THRESHOLD_BYTES = 1024 * 1024
+const UPLOAD_MAX_LONG_EDGE = 1600
+const UPLOAD_COMPRESS_QUALITY = 80
 
 function createDefaultForm() {
   return {
@@ -332,6 +335,7 @@ export default {
       showConditionPicker: false,
       previewVisible: false,
       previewIndex: 0,
+      localImageMetaMap: {},
       aiLoading: false,
       applyingSuggestion: false,
       submitting: false
@@ -371,7 +375,7 @@ export default {
     submitTip() {
       return this.isEdit
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
-        : '提交后商品会立即进入列表展示，图片会一起保存到本地上传目录。'
+        : '提交后商品会立即进入列表展示，图片会自动压缩并转换为更适合展示的格式。'
     },
     aiEntryText() {
       if (!this.imageList.length) {
@@ -489,6 +493,7 @@ export default {
         this.aiPanelVisible = false
         this.aiErrorMessage = ''
         this.categoryTouched = Boolean(merged.categoryTouched)
+        this.localImageMetaMap = {}
         return
       }
 
@@ -497,6 +502,7 @@ export default {
       this.aiPanelVisible = false
       this.aiErrorMessage = ''
       this.categoryTouched = false
+      this.localImageMetaMap = {}
     },
     ensureLoggedIn() {
       if (this.authStore.sync().isLoggedIn()) {
@@ -541,6 +547,7 @@ export default {
             this.aiPanelVisible = false
             this.aiErrorMessage = ''
             this.categoryTouched = true
+            this.localImageMetaMap = {}
             this.saveDraft()
             return
           }
@@ -553,9 +560,10 @@ export default {
     chooseImages() {
       uni.chooseImage({
         count: 9 - this.imageList.length,
-        sizeType: ['original'],
+        sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
+          this.rememberLocalImageMeta(res.tempFiles)
           this.form.images = [...this.imageList, ...(res.tempFilePaths || [])].slice(0, 9)
           this.aiValuation = null
           this.aiPanelVisible = false
@@ -565,7 +573,9 @@ export default {
       })
     },
     removeImage(index) {
+      const removedImage = this.imageList[index]
       this.form.images = this.imageList.filter((item, currentIndex) => currentIndex !== index)
+      this.forgetLocalImageMeta(removedImage)
       this.aiValuation = null
       this.aiPanelVisible = false
       this.aiErrorMessage = ''
@@ -609,6 +619,132 @@ export default {
     isUploadedImage(value) {
       return /^https?:\/\//.test(`${value || ''}`)
     },
+    rememberLocalImageMeta(fileList = []) {
+      if (!Array.isArray(fileList) || !fileList.length) {
+        return
+      }
+
+      const nextMeta = {}
+      fileList.forEach((file) => {
+        const path = file && (file.path || file.tempFilePath)
+        if (!path) {
+          return
+        }
+        nextMeta[path] = {
+          size: Number(file.size) || 0
+        }
+      })
+
+      if (!Object.keys(nextMeta).length) {
+        return
+      }
+
+      this.localImageMetaMap = {
+        ...this.localImageMetaMap,
+        ...nextMeta
+      }
+    },
+    forgetLocalImageMeta(filePath) {
+      if (!filePath || !this.localImageMetaMap[filePath]) {
+        return
+      }
+      const nextMeta = { ...this.localImageMetaMap }
+      delete nextMeta[filePath]
+      this.localImageMetaMap = nextMeta
+    },
+    getLocalImageInfo(filePath) {
+      return new Promise((resolve, reject) => {
+        uni.getImageInfo({
+          src: filePath,
+          success: resolve,
+          fail: reject
+        })
+      })
+    },
+    getLocalImageSize(filePath) {
+      const cached = this.localImageMetaMap[filePath]
+      if (cached && Number(cached.size) > 0) {
+        return Promise.resolve(Number(cached.size))
+      }
+
+      // #ifdef H5
+      return Promise.resolve(0)
+      // #endif
+
+      // #ifndef H5
+      return new Promise((resolve) => {
+        uni.getFileInfo({
+          filePath,
+          success: (res) => {
+            const size = Number((res && res.size) || 0)
+            if (size > 0) {
+              this.rememberLocalImageMeta([{ path: filePath, size }])
+            }
+            resolve(size)
+          },
+          fail: () => resolve(0)
+        })
+      })
+      // #endif
+    },
+    needsUploadCompression(imageInfo = {}, fileSize = 0) {
+      const longEdge = Math.max(Number(imageInfo.width) || 0, Number(imageInfo.height) || 0)
+      return longEdge > UPLOAD_MAX_LONG_EDGE || Number(fileSize || 0) > UPLOAD_COMPRESS_THRESHOLD_BYTES
+    },
+    compressUploadImage(filePath, imageInfo = {}) {
+      // #ifdef H5
+      return Promise.resolve(filePath)
+      // #endif
+
+      // #ifndef H5
+      const width = Number(imageInfo.width) || 0
+      const height = Number(imageInfo.height) || 0
+      const longEdge = Math.max(width, height)
+      const scale = longEdge > UPLOAD_MAX_LONG_EDGE ? UPLOAD_MAX_LONG_EDGE / longEdge : 1
+
+      return new Promise((resolve) => {
+        const options = {
+          src: filePath,
+          quality: UPLOAD_COMPRESS_QUALITY
+        }
+
+        if (scale < 1) {
+          options.compressedWidth = Math.max(1, Math.round(width * scale))
+          options.compressedHeight = Math.max(1, Math.round(height * scale))
+        }
+
+        uni.compressImage({
+          ...options,
+          success: (res) => {
+            const nextPath = (res && res.tempFilePath) || filePath
+            this.rememberLocalImageMeta([{ path: nextPath }])
+            resolve(nextPath)
+          },
+          fail: () => resolve(filePath)
+        })
+      })
+      // #endif
+    },
+    async prepareUploadImage(filePath) {
+      if (!filePath || this.isUploadedImage(filePath)) {
+        return filePath
+      }
+
+      try {
+        const [imageInfo, fileSize] = await Promise.all([
+          this.getLocalImageInfo(filePath),
+          this.getLocalImageSize(filePath)
+        ])
+
+        if (!this.needsUploadCompression(imageInfo, fileSize)) {
+          return filePath
+        }
+
+        return await this.compressUploadImage(filePath, imageInfo)
+      } catch (error) {
+        return filePath
+      }
+    },
     async uploadPendingImages() {
       const result = []
       for (let index = 0; index < this.imageList.length; index += 1) {
@@ -622,9 +758,14 @@ export default {
           title: `上传图片 ${index + 1}/${this.imageList.length}`,
           mask: true
         })
-        const res = await uploadGoodsImage(imagePath)
+        const preparedImagePath = await this.prepareUploadImage(imagePath)
+        const res = await uploadGoodsImage(preparedImagePath)
         if (!res || res.code !== 0 || !res.data || !res.data.url) {
           throw new Error((res && res.message) || '图片上传失败')
+        }
+        this.forgetLocalImageMeta(imagePath)
+        if (preparedImagePath !== imagePath) {
+          this.forgetLocalImageMeta(preparedImagePath)
         }
         result.push(res.data.url)
       }
@@ -803,6 +944,7 @@ export default {
           this.aiPanelVisible = false
           this.aiErrorMessage = ''
           this.categoryTouched = false
+          this.localImageMetaMap = {}
           uni.hideLoading()
           uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
           setTimeout(() => {

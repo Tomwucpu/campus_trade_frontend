@@ -66,6 +66,27 @@ function uniqueList(list) {
   return list.filter((item, index) => item && list.indexOf(item) === index)
 }
 
+export function resolveThumbUrl(url = '') {
+  const raw = `${url || ''}`.trim()
+  if (!raw) {
+    return ''
+  }
+
+  const matched = raw.match(/^([^?#]+)([?#].*)?$/)
+  const path = matched ? matched[1] : raw
+  const suffix = matched ? matched[2] || '' : ''
+
+  if (/_thumb\.webp$/i.test(path)) {
+    return raw
+  }
+
+  if (!/\.webp$/i.test(path)) {
+    return raw
+  }
+
+  return `${path.replace(/\.webp$/i, '_thumb.webp')}${suffix}`
+}
+
 function createSeed(item = {}, index = 0) {
   const source = `${item.id || ''}${item.goodsId || ''}${item.title || item.goodsTitle || ''}${index}`
   return source.split('').reduce((total, char) => total + char.charCodeAt(0), 0) || index + 1
@@ -148,6 +169,17 @@ function resolveItemImages(item = {}) {
   return item.imageUrl ? [item.imageUrl] : []
 }
 
+function resolveGoodsThumbnail(item = {}) {
+  if (item.thumbUrl) {
+    return item.thumbUrl
+  }
+  const images = resolveItemImages(item)
+  if (images.length) {
+    return resolveThumbUrl(images[0])
+  }
+  return item.imageUrl ? resolveThumbUrl(item.imageUrl) : ''
+}
+
 function createMessageTime(createdAt) {
   const diff = Date.now() - createdAt
   const minute = 60 * 1000
@@ -217,9 +249,13 @@ export function resolveConditionLabel(level) {
   return `${chineseDigit(numeric)}成新`
 }
 
-export function resolveGoodsImage(item = {}, index = 0) {
+export function resolveGoodsImage(item = {}, index = 0, options = {}) {
   const images = resolveItemImages(item)
-  return images[0] || ''
+  const masterImageUrl = images[0] || ''
+  if (options && options.preferThumb === false) {
+    return masterImageUrl
+  }
+  return resolveGoodsThumbnail(item) || masterImageUrl
 }
 
 export function resolveGoodsGallery(item = {}, index = 0) {
@@ -232,7 +268,9 @@ export function normalizeGoodsItem(item = {}, index = 0) {
   const priceValue = Number(item.price || 0)
   const originalPriceValue = Number(item.originalPrice || 0)
   const createdAt = item.createdAt || item.updatedAt || item.publishTime || item.publishedAt || Date.now() - seed * 6000
-  const imageUrl = resolveGoodsImage(item, index)
+  const masterImageUrl = resolveGoodsImage(item, index, { preferThumb: false })
+  const thumbUrl = resolveGoodsThumbnail(item)
+  const imageUrl = thumbUrl || masterImageUrl
   const favoriteCount = item.favoriteCount === 0 || item.favoriteCount ? Number(item.favoriteCount) : 6 + (seed % 30)
   const isFavorite = item.isFavorite === true
 
@@ -253,6 +291,8 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     categoryIcon: categoryMeta.icon,
     categoryKey: categoryMeta.key,
     imageUrl,
+    thumbUrl,
+    masterImageUrl,
     gallery: resolveGoodsGallery(item, index),
     sellerName: item.sellerName || pickSeed(seed, SELLER_NAMES),
     campusLocation: item.campusLocation || pickSeed(seed + 1, CAMPUS_LOCATIONS),
@@ -294,7 +334,9 @@ export function normalizeOrderItem(item = {}, index = 0) {
     orderNo: item.orderNo || `ORD${Date.now()}${index}`,
     goodsId: item.goodsId || goodsBase.id,
     goodsTitle: item.goodsTitle || goodsBase.title,
-    imageUrl: goodsBase.imageUrl,
+    imageUrl: resolveThumbUrl(item.thumbUrl || item.imageUrl || goodsBase.masterImageUrl || goodsBase.imageUrl),
+    thumbUrl: resolveThumbUrl(item.thumbUrl || item.imageUrl || goodsBase.masterImageUrl || goodsBase.imageUrl),
+    masterImageUrl: item.imageUrl || goodsBase.masterImageUrl || goodsBase.imageUrl,
     goodsPriceValue: Number(item.goodsPrice || item.totalAmount || 0),
     goodsPriceText: formatAmount(item.goodsPrice || item.totalAmount || 0),
     quantity: Number(item.quantity || 1),

@@ -28,7 +28,12 @@
           class="market-card conversation-card"
           @click="openConversation(item)"
         >
-          <image v-if="item.goodsImageUrl" class="goods-thumb" :src="item.goodsImageUrl" mode="aspectFill"></image>
+          <image
+            v-if="item.goodsImageUrl"
+            class="goods-thumb"
+            :src="resolveConversationImage(item.goodsThumbUrl || item.goodsImageUrl)"
+            mode="aspectFill"
+          ></image>
           <view v-else class="goods-thumb goods-thumb-placeholder">聊</view>
 
           <view class="conversation-main">
@@ -62,7 +67,7 @@ import { clearConversationMessages, getConversationList } from '../../api/chat'
 import AppTabBar from '../../components/AppTabBar.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { useAuthStore } from '../../store/auth'
-import { formatRelativeTime } from '../../utils/market'
+import { formatRelativeTime, resolveThumbUrl } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -127,6 +132,9 @@ export default {
     formatBadge(value) {
       const count = Number(value || 0)
       return count > 99 ? '99+' : `${count}`
+    },
+    resolveConversationImage(url) {
+      return resolveThumbUrl(url)
     },
     openConversation(item) {
       if (!item || !item.id) {
