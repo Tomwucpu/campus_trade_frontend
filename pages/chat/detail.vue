@@ -15,7 +15,7 @@
 
     <view class="market-shell summary-shell">
       <view class="market-card summary-card">
-        <image v-if="conversation.goodsImageUrl" class="summary-thumb" :src="conversation.goodsImageUrl" mode="aspectFill"></image>
+        <image v-if="summaryImageUrl" class="summary-thumb" :src="summaryImageUrl" mode="aspectFill"></image>
         <view v-else class="summary-thumb summary-thumb-placeholder">聊</view>
         <view class="summary-main">
           <view class="summary-title">{{ conversation.goodsTitle || '商品沟通' }}</view>
@@ -74,7 +74,7 @@ import {
 } from '../../api/chat'
 import EmptyState from '../../components/EmptyState.vue'
 import { useAuthStore } from '../../store/auth'
-import { formatDateTime } from '../../utils/market'
+import { formatDateTime, resolveThumbUrl } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 export default {
@@ -99,6 +99,9 @@ export default {
     },
     roleText() {
       return this.conversation && this.conversation.myRole === 'BUYER' ? '联系商家中' : '回复买家中'
+    },
+    summaryImageUrl() {
+      return resolveThumbUrl(this.conversation.goodsThumbUrl || this.conversation.goodsImageUrl)
     },
     timeHint() {
       return this.conversation && this.conversation.lastMessageAt
