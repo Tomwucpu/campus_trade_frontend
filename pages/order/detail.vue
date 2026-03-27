@@ -19,7 +19,8 @@
     <view class="market-shell detail-shell">
       <view class="market-card detail-card">
         <view class="market-section-title">交付联系</view>
-        <view class="detail-line strong">{{ addressText }}</view>
+        <view v-if="addressText" class="detail-line strong">{{ addressText }}</view>
+        <view v-else class="detail-line strong">暂无交付联系信息</view>
         <view class="detail-line">{{ deliveryHint }}</view>
       </view>
 
@@ -29,7 +30,7 @@
           <image v-if="order.imageUrl" class="goods-image" :src="order.imageUrl" mode="aspectFill"></image>
           <view class="goods-main">
             <view class="goods-title">{{ order.goodsTitle }}</view>
-            <view class="goods-meta">{{ order.counterpartName }}</view>
+            <view v-if="order.counterpartName" class="goods-meta">{{ order.counterpartName }}</view>
             <view class="goods-price market-price">¥{{ order.totalAmountText }}</view>
           </view>
         </view>
@@ -275,7 +276,7 @@ export default {
         this.confirmDelete()
         return
       }
-      uni.showToast({ title: `请联系${this.order.counterpartName}`, icon: 'none' })
+      uni.showToast({ title: this.order.counterpartName ? `请联系${this.order.counterpartName}` : '请通过聊天页联系对方', icon: 'none' })
     },
     confirmDelete() {
       uni.showModal({

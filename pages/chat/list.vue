@@ -39,7 +39,7 @@
           <view class="conversation-main">
             <view class="conversation-head">
               <view class="conversation-title-row">
-                <text class="conversation-name">{{ item.counterpartName || '同学' }}</text>
+                <text class="conversation-name">{{ conversationName(item) }}</text>
                 <text class="market-tag muted role-tag">{{ roleText(item) }}</text>
               </view>
               <view class="conversation-time">{{ formatTime(item.lastMessageAt) }}</view>
@@ -125,6 +125,12 @@ export default {
     },
     roleText(item) {
       return item && item.myRole === 'BUYER' ? '联系商家' : '买家咨询'
+    },
+    conversationName(item) {
+      if (item && item.counterpartName) {
+        return item.counterpartName
+      }
+      return item && item.myRole === 'BUYER' ? '卖家' : '买家'
     },
     formatTime(value) {
       return formatRelativeTime(value)

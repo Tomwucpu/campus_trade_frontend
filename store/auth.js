@@ -65,7 +65,7 @@ const authStore = {
   },
 
   getDisplayName() {
-    return this.profile.username || '同学'
+    return this.profile.username || '用户'
   }
 }
 

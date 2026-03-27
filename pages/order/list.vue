@@ -44,7 +44,7 @@
             <image v-if="item.imageUrl" class="order-image" :src="item.imageUrl" mode="aspectFill"></image>
             <view class="order-main">
               <view class="order-title">{{ item.goodsTitle }}</view>
-              <view class="order-meta">{{ item.roleType === 'SELLER' ? '买家' : '卖家' }}：{{ item.counterpartName }}</view>
+              <view v-if="counterpartLabel(item)" class="order-meta">{{ counterpartLabel(item) }}</view>
               <view class="order-price market-price">¥{{ item.totalAmountText }}</view>
             </view>
           </view>
@@ -181,6 +181,10 @@ export default {
     },
     contactActionLabel(item) {
       return item.roleType === 'SELLER' ? '联系买家' : '联系商家'
+    },
+    counterpartLabel(item) {
+      const role = item && item.roleType === 'SELLER' ? '买家' : '卖家'
+      return item && item.counterpartName ? `${role}：${item.counterpartName}` : ''
     },
     canCancel(item) {
       return item.roleType === 'BUYER' && item.status === 'PENDING_PAYMENT'

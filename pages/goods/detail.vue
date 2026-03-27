@@ -55,19 +55,19 @@
           <view class="detail-meta">
             <view class="meta-item">发布时间 {{ detail.createdAtText }}</view>
             <view class="meta-item">{{ detail.categoryLabel }}</view>
-            <view class="meta-item">{{ detail.campusLocation }}</view>
+            <view v-if="detail.campusLocation" class="meta-item">{{ detail.campusLocation }}</view>
           </view>
         </view>
 
-        <view class="market-card seller-card">
+        <view v-if="hasSellerInfo" class="market-card seller-card">
           <view class="seller-main">
             <view class="seller-avatar">{{ (detail.sellerName || '卖').slice(0, 1) }}</view>
             <view class="seller-copy">
-              <view class="seller-name-row">
+              <view v-if="detail.sellerName || detail.sellerRating" class="seller-name-row">
                 <text class="seller-name">{{ detail.sellerName }}</text>
-                <text class="seller-rating">★{{ detail.sellerRating }}</text>
+                <text v-if="detail.sellerRating" class="seller-rating">★{{ detail.sellerRating }}</text>
               </view>
-              <view class="seller-subtitle">{{ detail.sellerStudentNo }} · {{ detail.campusLocation }}</view>
+              <view v-if="sellerSubtitle" class="seller-subtitle">{{ sellerSubtitle }}</view>
             </view>
           </view>
           <view class="seller-action">查看主页</view>
@@ -167,6 +167,18 @@ export default {
     },
     hasGallery() {
       return this.hasDetail && Array.isArray(this.detail.gallery) && this.detail.gallery.length > 0
+    },
+    hasSellerInfo() {
+      if (!this.hasDetail) {
+        return false
+      }
+      return [this.detail.sellerName, this.detail.sellerRating, this.detail.sellerStudentNo, this.detail.campusLocation].some(Boolean)
+    },
+    sellerSubtitle() {
+      if (!this.hasDetail) {
+        return ''
+      }
+      return [this.detail.sellerStudentNo, this.detail.campusLocation].filter(Boolean).join(' · ')
     },
     favorite() {
       return this.favoriteState

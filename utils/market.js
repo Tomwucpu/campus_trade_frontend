@@ -1,9 +1,6 @@
 const FAVORITE_KEY = 'market_favorite_goods_ids'
 const MESSAGE_KEY = 'market_message_items'
 
-const SELLER_NAMES = ['张同学', '李同学', '王同学', '赵同学', '孙同学', '周同学']
-const CAMPUS_LOCATIONS = ['北区宿舍楼', '南区宿舍楼', '图书馆南门', '教学楼一层', '操场东门', '食堂门口']
-
 const CATEGORY_META = [
   { id: 'all', value: 'all', name: '全部', shortName: '全部', icon: '📦', key: 'all', keywords: [] },
   { id: 2, value: 2, name: '教材书籍', shortName: '教材', icon: '📚', key: 'books', keywords: ['教材', '图书', '书'] },
@@ -103,13 +100,6 @@ function parseTimeValue(value) {
 
   const timestamp = new Date(value).getTime()
   return Number.isNaN(timestamp) ? 0 : timestamp
-}
-
-function pickSeed(seed, list = []) {
-  if (!list.length) {
-    return ''
-  }
-  return list[Math.abs(seed) % list.length]
 }
 
 function chineseDigit(value) {
@@ -294,8 +284,8 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     thumbUrl,
     masterImageUrl,
     gallery: resolveGoodsGallery(item, index),
-    sellerName: item.sellerName || pickSeed(seed, SELLER_NAMES),
-    campusLocation: item.campusLocation || pickSeed(seed + 1, CAMPUS_LOCATIONS),
+    sellerName: item.sellerName || '',
+    campusLocation: item.campusLocation || '',
     viewCount: Number(item.viewCount || item.glanceCount || 0),
     favoriteCount,
     status: item.status || 'ON_SALE',
@@ -303,8 +293,8 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     publishedAtText: formatRelativeTime(createdAt),
     createdAtText: formatDateTime(createdAt),
     createdAtValue: parseTimeValue(createdAt),
-    sellerRating: item.sellerRating || (4.6 + (seed % 4) * 0.1).toFixed(1),
-    sellerStudentNo: item.sellerStudentNo || `2023****${String((seed % 90) + 10)}`,
+    sellerRating: item.sellerRating === 0 || item.sellerRating ? `${item.sellerRating}` : '',
+    sellerStudentNo: item.sellerStudentNo || '',
     isFavorite
   }
 }
@@ -343,8 +333,8 @@ export function normalizeOrderItem(item = {}, index = 0) {
     totalAmountValue: Number(item.totalAmount || 0),
     totalAmountText: formatAmount(item.totalAmount || 0),
     sellerName: item.sellerName || goodsBase.sellerName,
-    buyerName: item.buyerName || pickSeed(seed + 2, SELLER_NAMES),
-    counterpartName: item.counterpartName || (item.roleType === 'SELLER' ? item.buyerName : item.sellerName) || pickSeed(seed + 3, SELLER_NAMES),
+    buyerName: item.buyerName || '',
+    counterpartName: item.counterpartName || (item.roleType === 'SELLER' ? item.buyerName : item.sellerName) || '',
     statusText: statusMeta.text,
     statusType: statusMeta.type,
     createdAtText: formatDateTime(createdAt),
@@ -360,8 +350,8 @@ export function normalizeOrderItem(item = {}, index = 0) {
     updatedAtValue: parseTimeValue(updatedAt),
     cancelReason: item.cancelReason || '',
     roleType: item.roleType || 'BUYER',
-    meetupLocation: pickSeed(seed + 1, CAMPUS_LOCATIONS),
-    meetupPhone: `13${(seed % 9) + 1}****${String((seed % 90) + 10).padStart(2, '0')}`
+    meetupLocation: item.meetupLocation || '',
+    meetupPhone: item.meetupPhone || ''
   }
 }
 
@@ -390,7 +380,7 @@ export function filterGoodsList(list = [], filters = {}) {
     const item = rawItem.priceValue ? rawItem : normalizeGoodsItem(rawItem)
 
     if (keyword) {
-      const haystack = `${item.title} ${item.description} ${item.categoryLabel} ${item.sellerName}`.toLowerCase()
+      const haystack = `${item.title} ${item.description} ${item.categoryLabel} ${item.sellerName || ''}`.toLowerCase()
       if (!haystack.includes(keyword)) {
         return false
       }
@@ -576,7 +566,7 @@ export function getMessageMeta(type) {
 }
 
 export function createCampusAddress(order = {}) {
-  return `${order.counterpartName || order.sellerName || '同学'} · ${order.meetupPhone || '13****5678'} · ${order.meetupLocation || '图书馆南门'}`
+  return [order.counterpartName, order.meetupPhone, order.meetupLocation].filter(Boolean).join(' · ')
 }
 
 export function maskPhone(value) {

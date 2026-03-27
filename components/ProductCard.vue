@@ -18,7 +18,7 @@
       </view>
       <view class="product-meta">
         <view class="product-time">{{ goods.publishedAtText }}</view>
-        <view class="product-seller">{{ goods.sellerName }}</view>
+        <view v-if="goods.sellerName" class="product-seller">{{ goods.sellerName }}</view>
       </view>
     </view>
   </view>
