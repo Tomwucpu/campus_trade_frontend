@@ -53,6 +53,13 @@ export function offSaleGoods(id) {
   })
 }
 
+export function deleteGoods(id) {
+  return request({
+    url: `/goods/${id}`,
+    method: 'DELETE'
+  })
+}
+
 export function getGoodsCategories() {
   return request({
     url: '/goods/categories',

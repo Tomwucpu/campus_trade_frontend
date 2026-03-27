@@ -338,7 +338,9 @@ export default {
       localImageMetaMap: {},
       aiLoading: false,
       applyingSuggestion: false,
-      submitting: false
+      submitting: false,
+      editCapability: null,
+      editWillAutoCancelPendingOrder: false
     }
   },
   computed: {
@@ -373,6 +375,9 @@ export default {
       return this.isEdit ? '保存修改' : '立即发布'
     },
     submitTip() {
+      if (this.isEdit && this.editWillAutoCancelPendingOrder) {
+        return '本次保存会自动取消当前商品的待付款订单，保存后商品会恢复在售状态。'
+      }
       return this.isEdit
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
         : '提交后商品会立即进入列表展示，图片会自动压缩并转换为更适合展示的格式。'
@@ -452,8 +457,8 @@ export default {
     }
     this.restoreDraft()
     this.fetchCategories()
-    if (this.isEdit && !this.form.title) {
-      this.fetchDetail()
+    if (this.isEdit) {
+      this.fetchDetail(!this.form.title)
     }
   },
   onShow() {
@@ -515,6 +520,16 @@ export default {
       }, 260)
       return false
     },
+    showActionConfirm(title, content) {
+      return new Promise((resolve) => {
+        uni.showModal({
+          title,
+          content,
+          success: ({ confirm }) => resolve(Boolean(confirm)),
+          fail: () => resolve(false)
+        })
+      })
+    },
     fetchCategories() {
       getGoodsCategories()
         .then((res) => {
@@ -528,11 +543,27 @@ export default {
         })
         .catch(() => {})
     },
-    fetchDetail() {
+    fetchDetail(syncForm = true) {
       getGoodsDetail(this.id)
         .then((res) => {
           if (res && res.code === 0 && res.data) {
             const detail = normalizeGoodsItem(res.data, 0)
+            this.editCapability = detail
+            this.editWillAutoCancelPendingOrder = detail.hasPendingPaymentOrder === true
+            if (detail.canEdit === false) {
+              uni.showModal({
+                title: '当前不可编辑',
+                content: detail.editBlockedReason || '当前状态暂不支持编辑商品',
+                showCancel: false,
+                success: () => {
+                  this.goBack()
+                }
+              })
+              return
+            }
+            if (!syncForm) {
+              return
+            }
             this.form = {
               ...createDefaultForm(),
               title: detail.title || '',
@@ -898,6 +929,13 @@ export default {
       if (!this.ensureLoggedIn()) {
         return
       }
+      if (this.isEdit && this.editCapability && this.editCapability.canEdit === false) {
+        uni.showToast({
+          title: this.editCapability.editBlockedReason || '当前状态暂不支持编辑商品',
+          icon: 'none'
+        })
+        return
+      }
 
       if (!this.form.title || !this.form.price || !this.form.description) {
         uni.showToast({ title: '请补全标题、价格和描述', icon: 'none' })
@@ -913,6 +951,16 @@ export default {
       if (originalPrice !== null && (Number.isNaN(originalPrice) || originalPrice < 0)) {
         uni.showToast({ title: '请输入正确的原价', icon: 'none' })
         return
+      }
+
+      if (this.isEdit && this.editWillAutoCancelPendingOrder) {
+        const confirmed = await this.showActionConfirm(
+          '保存修改',
+          '保存后会自动取消当前商品的待付款订单，并将商品恢复为在售状态，确认继续吗？'
+        )
+        if (!confirmed) {
+          return
+        }
       }
 
       this.submitting = true

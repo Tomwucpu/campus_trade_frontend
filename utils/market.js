@@ -263,6 +263,7 @@ export function normalizeGoodsItem(item = {}, index = 0) {
   const imageUrl = thumbUrl || masterImageUrl
   const favoriteCount = item.favoriteCount === 0 || item.favoriteCount ? Number(item.favoriteCount) : 6 + (seed % 30)
   const isFavorite = item.isFavorite === true
+  const hasBooleanValue = (value) => value === true || value === false
 
   return {
     ...item,
@@ -290,6 +291,13 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     favoriteCount,
     status: item.status || 'ON_SALE',
     statusText: GOODS_STATUS_TEXT[item.status] || '在售中',
+    canEdit: hasBooleanValue(item.canEdit) ? item.canEdit : item.status !== 'SOLD',
+    canDelete: hasBooleanValue(item.canDelete) ? item.canDelete : ['ON_SALE', 'OFFLINE'].includes(item.status),
+    canOnSale: hasBooleanValue(item.canOnSale) ? item.canOnSale : item.status === 'OFFLINE',
+    hasPendingPaymentOrder: item.hasPendingPaymentOrder === true,
+    editBlockedReason: item.editBlockedReason || '',
+    deleteBlockedReason: item.deleteBlockedReason || '',
+    onSaleBlockedReason: item.onSaleBlockedReason || '',
     publishedAtText: formatRelativeTime(createdAt),
     createdAtText: formatDateTime(createdAt),
     createdAtValue: parseTimeValue(createdAt),
