@@ -77,6 +77,9 @@ export default {
       this.refreshMessages()
     }
   },
+  onUnload() {
+    uni.$emit('tabbar:refresh-unread')
+  },
   methods: {
     ensureLogin() {
       if (this.authStore.sync().isLoggedIn()) {
