@@ -3,11 +3,11 @@
     <view class="sticky-shell">
       <view class="market-shell safe-top">
         <view class="market-topbar list-topbar">
-          <view class="market-back-btn" @click="goBack">
-            <text class="market-back-symbol">‹</text>
+          <view class="market-back-btn list-back-btn" @click="goBack">
+            <text class="bi bi-arrow-left icon-font"></text>
           </view>
           <view class="search-wrap">
-            <text class="search-icon">⌕</text>
+            <text class="bi bi-search icon-font search-icon"></text>
             <input
               v-model="keyword"
               class="search-field"
@@ -15,9 +15,12 @@
               confirm-type="search"
               @confirm="fetchList"
             />
+            <view v-if="keyword" class="search-clear" @click="clearKeyword">
+              <text class="bi bi-x-circle-fill icon-font"></text>
+            </view>
           </view>
           <view class="filter-btn" :class="{ active: showFilter }" @click="showFilter = !showFilter">
-            筛
+            <text class="bi bi-sliders2 icon-font"></text>
           </view>
         </view>
 
@@ -36,50 +39,52 @@
         </scroll-view>
       </view>
 
-      <view v-if="showFilter" class="market-shell filter-shell">
-        <view class="market-card filter-card">
-          <view class="filter-block">
-            <view class="filter-title">商品类目</view>
-            <view class="chip-wrap">
-              <view
-                v-for="item in categories"
-                :key="item.id"
-                class="market-pill small"
-                :class="{ active: String(categoryId) === String(item.id || item.value) }"
-                @click="categoryId = item.id || item.value"
-              >
-                {{ item.shortName || item.name }}
+      <view class="filter-slide-wrap" :class="{ active: showFilter }">
+        <view class="market-shell filter-shell">
+          <view class="market-card filter-card">
+            <view class="filter-block">
+              <view class="filter-title">商品类目</view>
+              <view class="chip-wrap">
+                <view
+                  v-for="item in categories"
+                  :key="item.id"
+                  class="market-pill small"
+                  :class="{ active: String(categoryId) === String(item.id || item.value) }"
+                  @click="categoryId = item.id || item.value"
+                >
+                  {{ item.shortName || item.name }}
+                </view>
               </view>
             </view>
-          </view>
 
-          <view class="filter-block">
-            <view class="filter-title">商品成色</view>
-            <view class="chip-wrap">
-              <view
-                v-for="item in conditionChoices"
-                :key="item"
-                class="market-pill small"
-                :class="{ active: selectedConditions.includes(item) }"
-                @click="toggleCondition(item)"
-              >
-                {{ item }}
+            <view class="filter-block">
+              <view class="filter-title">商品成色</view>
+              <view class="chip-wrap">
+                <view
+                  v-for="item in conditionChoices"
+                  :key="item"
+                  class="market-pill small"
+                  :class="{ active: selectedConditions.includes(item) }"
+                  @click="toggleCondition(item)"
+                >
+                  {{ item }}
+                </view>
               </view>
             </view>
-          </view>
 
-          <view class="filter-block">
-            <view class="filter-title">价格区间</view>
-            <view class="price-row">
-              <input v-model="minPrice" class="market-input price-input" type="digit" placeholder="最低价" />
-              <text class="price-gap">-</text>
-              <input v-model="maxPrice" class="market-input price-input" type="digit" placeholder="最高价" />
+            <view class="filter-block">
+              <view class="filter-title">价格区间</view>
+              <view class="price-row">
+                <input v-model="minPrice" class="market-input price-input" type="digit" placeholder="最低价" />
+                <text class="price-gap">-</text>
+                <input v-model="maxPrice" class="market-input price-input" type="digit" placeholder="最高价" />
+              </view>
             </view>
-          </view>
 
-          <view class="filter-actions">
-            <button class="market-secondary-btn filter-action" @click="resetFilters">重置</button>
-            <button class="market-primary-btn filter-action" @click="applyFilters">确定</button>
+            <view class="filter-actions">
+              <button class="market-secondary-btn filter-action" @click="resetFilters">重置</button>
+              <button class="market-primary-btn filter-action" @click="applyFilters">确定</button>
+            </view>
           </view>
         </view>
       </view>
@@ -254,6 +259,13 @@ export default {
       this.showFilter = false
       this.persistQuery()
     },
+    clearKeyword() {
+      if (!this.keyword) {
+        return
+      }
+      this.keyword = ''
+      this.fetchList()
+    },
     handleFavoriteChange(payload) {
       if (!payload || !payload.id) {
         return
@@ -283,53 +295,83 @@ export default {
 .sticky-shell {
   position: sticky;
   top: 0;
-  z-index: 18;
-  background: linear-gradient(180deg, rgba(255, 254, 249, 0.96) 0%, rgba(255, 254, 249, 0.92) 100%);
-  backdrop-filter: blur(10rpx);
+  z-index: 24;
+  background: linear-gradient(180deg, rgba(252, 251, 247, 0.98) 0%, rgba(252, 251, 247, 0.9) 100%);
+  backdrop-filter: blur(14rpx);
 }
 
 .list-topbar {
-  margin-bottom: 18rpx;
+  margin-bottom: 20rpx;
+  padding: 8rpx 0;
+}
+
+.list-back-btn .icon-font {
+  font-size: 34rpx;
 }
 
 .search-wrap {
   flex: 1;
-  height: 76rpx;
-  border-radius: 20rpx;
-  background: #f8f9fa;
+  min-width: 0;
+  height: 78rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1rpx solid rgba(216, 209, 196, 0.9);
+  box-shadow: 0 12rpx 24rpx rgba(39, 35, 30, 0.08);
   display: flex;
   align-items: center;
   gap: 12rpx;
-  padding: 0 22rpx;
+  padding: 0 18rpx 0 22rpx;
 }
 
 .search-icon {
-  color: #adb5bd;
-  font-size: 28rpx;
+  color: #8f8679;
+  font-size: 27rpx;
 }
 
 .search-field {
   flex: 1;
-  height: 76rpx;
+  min-width: 0;
+  height: 78rpx;
   font-size: 25rpx;
   color: #2c3e50;
+}
+
+.search-clear {
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a9a194;
+  flex-shrink: 0;
+}
+
+.search-clear .icon-font {
+  font-size: 24rpx;
 }
 
 .filter-btn {
   width: 72rpx;
   height: 72rpx;
-  border-radius: 22rpx;
-  background: #f8f9fa;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1rpx solid rgba(216, 209, 196, 0.9);
+  box-shadow: 0 10rpx 18rpx rgba(39, 35, 30, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2c3e50;
+  color: #3a342d;
+}
+
+.filter-btn .icon-font {
   font-size: 28rpx;
-  font-weight: 700;
+  line-height: 1;
 }
 
 .filter-btn.active {
-  background: #2d6a4f;
+  background: #27231e;
+  border-color: #27231e;
   color: #ffffff;
 }
 
@@ -345,12 +387,39 @@ export default {
   padding-right: 24rpx;
 }
 
+.filter-slide-wrap {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-24rpx);
+  pointer-events: none;
+  transition:
+    max-height 0.5s cubic-bezier(0.18, 0.74, 0.22, 1),
+    opacity 0.34s ease,
+    transform 0.5s cubic-bezier(0.18, 0.74, 0.22, 1);
+}
+
+.filter-slide-wrap.active {
+  max-height: 1800rpx;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 .filter-shell {
   padding-bottom: 16rpx;
 }
 
 .filter-card {
   padding: 24rpx;
+  transform: translateY(-20rpx);
+  transition:
+    transform 0.46s cubic-bezier(0.18, 0.74, 0.22, 1),
+    box-shadow 0.3s ease;
+}
+
+.filter-slide-wrap.active .filter-card {
+  transform: translateY(0);
 }
 
 .filter-block + .filter-block {
