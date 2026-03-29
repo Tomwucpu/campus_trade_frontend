@@ -1,11 +1,19 @@
 <template>
   <view class="market-page chat-list-page" :class="themeClass">
     <view class="market-shell safe-top">
-      <view class="market-topbar page-topbar">
-        <view class="market-page-title">聊天消息</view>
-        <view class="top-actions">
-          <view class="top-link" @click="goNotice">通知</view>
-          <view class="top-link" @click="refreshList">刷新</view>
+      <view class="market-topbar page-topbar" :class="{ 'topbar-ready': topbarReady }">
+        <view class="headline-wrap">
+          <view class="market-page-title title-main">消息</view>
+        </view>
+        <view
+          class="notice-btn"
+          hover-class="notice-btn-hover"
+          hover-stay-time="120"
+          @click="goNotice"
+          @longpress="refreshList(true)"
+        >
+          <text class="icon-font bi bi-bell notice-icon"></text>
+          <view v-if="hasUnread" class="notice-dot active"></view>
         </view>
       </view>
     </view>
@@ -21,11 +29,12 @@
         />
       </view>
 
-      <view v-else class="conversation-list">
+      <view v-else class="conversation-list" :class="{ 'list-ready': listReady }">
         <view
-          v-for="item in conversations"
+          v-for="(item, index) in conversations"
           :key="item.id"
           class="market-card conversation-card"
+          :style="conversationStyle(index)"
           @click="openConversation(item)"
         >
           <image
@@ -64,6 +73,7 @@
 
 <script>
 import { clearConversationMessages, getConversationList } from '../../api/chat'
+import { getUnreadMessageCount } from '../../api/message'
 import AppTabBar from '../../components/AppTabBar.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { useAuthStore } from '../../store/auth'
@@ -80,7 +90,24 @@ export default {
       theme: 'light',
       themeClass: 'theme-light',
       authStore: useAuthStore(),
-      conversations: []
+      conversations: [],
+      noticeUnreadCount: 0,
+      topbarReady: false,
+      listReady: false,
+      shouldStagger: false,
+      topbarTimer: null,
+      listEntryTimer: null,
+      listStaggerTimer: null
+    }
+  },
+  computed: {
+    hasUnread() {
+      return Number(this.noticeUnreadCount || 0) > 0
+    }
+  },
+  watch: {
+    conversations() {
+      this.triggerListEntry()
     }
   },
   onLoad() {
@@ -88,15 +115,70 @@ export default {
     if (!this.ensureLogin()) {
       return
     }
+    this.fetchNoticeUnreadCount()
     this.refreshList()
+  },
+  onReady() {
+    this.startTopbarEntry()
   },
   onShow() {
     syncThemePage(this)
     if (this.authStore.sync().isLoggedIn()) {
+      this.fetchNoticeUnreadCount()
       this.refreshList()
+      return
     }
+    this.noticeUnreadCount = 0
+  },
+  onUnload() {
+    this.clearTimers()
   },
   methods: {
+    startTopbarEntry() {
+      clearTimeout(this.topbarTimer)
+      this.topbarReady = false
+      this.$nextTick(() => {
+        this.topbarTimer = setTimeout(() => {
+          this.topbarReady = true
+          this.topbarTimer = null
+        }, 26)
+      })
+    },
+    triggerListEntry() {
+      clearTimeout(this.listEntryTimer)
+      clearTimeout(this.listStaggerTimer)
+      this.listReady = false
+      this.shouldStagger = Boolean(this.conversations.length)
+      if (!this.conversations.length) {
+        return
+      }
+      this.$nextTick(() => {
+        this.listEntryTimer = setTimeout(() => {
+          this.listReady = true
+          this.listEntryTimer = null
+          this.listStaggerTimer = setTimeout(() => {
+            this.shouldStagger = false
+            this.listStaggerTimer = null
+          }, 760)
+        }, 22)
+      })
+    },
+    conversationStyle(index) {
+      if (!this.shouldStagger || !this.listReady) {
+        return {}
+      }
+      return {
+        transitionDelay: `${Math.min(index, 7) * 52}ms`
+      }
+    },
+    clearTimers() {
+      clearTimeout(this.topbarTimer)
+      clearTimeout(this.listEntryTimer)
+      clearTimeout(this.listStaggerTimer)
+      this.topbarTimer = null
+      this.listEntryTimer = null
+      this.listStaggerTimer = null
+    },
     ensureLogin() {
       if (this.authStore.sync().isLoggedIn()) {
         return true
@@ -107,7 +189,7 @@ export default {
       }, 260)
       return false
     },
-    refreshList() {
+    refreshList(showFeedback = false) {
       getConversationList({
         pageNum: 1,
         pageSize: 50
@@ -115,12 +197,34 @@ export default {
         .then((res) => {
           if (res && res.code === 0) {
             this.conversations = (res.data && res.data.records) || []
+            if (showFeedback) {
+              uni.showToast({ title: '会话已更新', icon: 'none' })
+            }
             return
           }
           this.conversations = []
+          if (showFeedback) {
+            uni.showToast({ title: (res && res.message) || '刷新失败', icon: 'none' })
+          }
         })
         .catch(() => {
           this.conversations = []
+          if (showFeedback) {
+            uni.showToast({ title: '刷新失败', icon: 'none' })
+          }
+        })
+    },
+    fetchNoticeUnreadCount() {
+      getUnreadMessageCount()
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.noticeUnreadCount = Number(res.data || 0)
+            return
+          }
+          this.noticeUnreadCount = 0
+        })
+        .catch(() => {
+          this.noticeUnreadCount = 0
         })
     },
     roleText(item) {
@@ -187,21 +291,97 @@ export default {
 <style scoped>
 .chat-list-page {
   padding-bottom: 180rpx;
+  background: linear-gradient(180deg, rgba(233, 228, 219, 0.95) 0rpx, rgba(233, 228, 219, 0.58) 156rpx, transparent 320rpx);
+}
+
+.theme-dark.chat-list-page {
+  background: linear-gradient(180deg, rgba(48, 44, 40, 0.82) 0rpx, rgba(48, 44, 40, 0.18) 156rpx, transparent 320rpx);
 }
 
 .page-topbar {
-  margin-bottom: 18rpx;
+  padding: 4rpx 2rpx 10rpx;
+  opacity: 0;
+  transform: translateY(20rpx);
+  transition: opacity 360ms ease, transform 360ms cubic-bezier(0.2, 0.72, 0.25, 1);
 }
 
-.top-actions {
+.page-topbar.topbar-ready {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.headline-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-main {
+  font-size: 62rpx;
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: 4rpx;
+  color: #16130f;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+}
+
+.theme-dark .title-main {
+  color: #f1ece4;
+}
+
+.notice-btn {
+  width: 82rpx;
+  height: 82rpx;
+  border-radius: 50%;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 18rpx;
+  justify-content: center;
+  background: rgba(225, 220, 210, 0.98);
+  border: 1rpx solid rgba(200, 193, 181, 0.8);
+  box-shadow: 0 12rpx 26rpx rgba(39, 35, 30, 0.12);
+  transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+  animation: bell-float 3.4s ease-in-out infinite;
 }
 
-.top-link {
-  font-size: 22rpx;
-  color: #2d6a4f;
+.theme-dark .notice-btn {
+  background: rgba(85, 80, 73, 0.9);
+  border-color: rgba(120, 110, 102, 0.7);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.28);
+}
+
+.notice-btn-hover,
+.notice-btn:active {
+  transform: scale(0.94);
+  box-shadow: 0 8rpx 18rpx rgba(39, 35, 30, 0.18);
+  background: rgba(214, 207, 196, 0.98);
+}
+
+.notice-icon {
+  font-size: 40rpx;
+  color: #211d19;
+}
+
+.theme-dark .notice-icon {
+  color: #f5f1ea;
+}
+
+.notice-dot {
+  position: absolute;
+  right: 13rpx;
+  top: 15rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #9b3a32;
+  border: 2rpx solid rgba(243, 237, 228, 0.92);
+  opacity: 0.72;
+  transform: scale(0.88);
+}
+
+.notice-dot.active {
+  opacity: 1;
+  transform: scale(1);
+  animation: dot-pulse 1.5s ease-in-out infinite;
 }
 
 .page-body {
@@ -223,6 +403,20 @@ export default {
   display: flex;
   align-items: center;
   gap: 18rpx;
+  opacity: 0;
+  transform: translateY(24rpx) scale(0.985);
+  transition: transform 420ms cubic-bezier(0.2, 0.74, 0.2, 1), opacity 420ms ease, box-shadow 220ms ease;
+  will-change: transform, opacity;
+}
+
+.conversation-list.list-ready .conversation-card {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.conversation-card:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: 0 8rpx 24rpx rgba(39, 35, 30, 0.12);
 }
 
 .goods-thumb {
@@ -231,6 +425,11 @@ export default {
   border-radius: 22rpx;
   flex-shrink: 0;
   background: #f4f6f8;
+  transition: transform 260ms ease;
+}
+
+.conversation-card:active .goods-thumb {
+  transform: scale(0.96);
 }
 
 .goods-thumb-placeholder {
@@ -323,5 +522,38 @@ export default {
   flex-shrink: 0;
   font-size: 22rpx;
   color: #d9485f;
+  transition: transform 180ms ease, color 180ms ease;
+}
+
+.conversation-clear:active {
+  transform: scale(0.93);
+  color: #bf2f47;
+}
+
+@keyframes bell-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4rpx);
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(155, 58, 50, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 10rpx rgba(155, 58, 50, 0);
+  }
+}
+
+@media (max-width: 360px) {
+  .title-main {
+    font-size: 56rpx;
+    letter-spacing: 2rpx;
+  }
 }
 </style>
