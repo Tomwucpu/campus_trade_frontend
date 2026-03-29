@@ -2,5 +2,8 @@
   "name": "campus-usedtrade-uniapp",
   "version": "0.1.0",
   "private": true,
-  "description": "校园二手交易平台前端（uni-app + Vue3）"
+  "description": "校园二手交易平台前端（uni-app + Vue3）",
+  "dependencies": {
+    "@dcloudio/uni-ui": "^1.5.12"
+  }
 }

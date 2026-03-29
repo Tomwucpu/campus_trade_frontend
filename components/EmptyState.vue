@@ -1,5 +1,5 @@
 <template>
-  <view class="market-empty empty-state">
+  <view class="market-empty empty-state" :class="stateClasses">
     <view class="empty-icon">{{ icon }}</view>
     <view class="empty-title">{{ title }}</view>
     <view class="empty-desc">{{ description }}</view>
@@ -26,6 +26,17 @@ export default {
     buttonText: {
       type: String,
       default: ''
+    },
+    variant: {
+      type: String,
+      default: 'default'
+    }
+  },
+  computed: {
+    stateClasses() {
+      return {
+        'empty-state--home': this.variant === 'home'
+      }
     }
   }
 }
@@ -34,6 +45,10 @@ export default {
 <style scoped>
 .empty-state {
   padding: 100rpx 32rpx 80rpx;
+}
+
+.empty-state--home {
+  padding: 86rpx 28rpx 68rpx;
 }
 
 .empty-icon {

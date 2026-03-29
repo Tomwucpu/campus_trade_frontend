@@ -1,106 +1,140 @@
 <template>
   <view class="market-page home-page" :class="themeClass">
-    <view class="home-hero safe-top">
-      <view class="market-shell">
-        <view class="hero-top">
-          <view>
-            <view class="hero-title">校园二手市集</view>
-            <view class="hero-subtitle">让闲置流转起来，轻松完成校内交易。</view>
+    <view class="market-shell safe-top home-shell">
+      <view class="home-topbar">
+        <view class="brand-copy">
+          <view class="brand-line">
+            <text class="brand-title">集市</text>
+            <uni-icons class="brand-spark" type="star-filled" :size="12" color="#df9189"></uni-icons>
           </view>
-          <view class="hero-message" @click="go('/pages/user/messages')">
-            <text class="hero-message-icon">铃</text>
-            <text v-if="unreadCount" class="hero-message-dot"></text>
-          </view>
+          <view class="brand-subtitle">让闲置流转，校内交易更轻一点。</view>
         </view>
 
-        <view class="search-box">
-          <text class="search-icon">⌕</text>
-          <input
-            v-model="searchKeyword"
-            class="search-input"
-            placeholder="搜索你想要的二手物品"
-            confirm-type="search"
-            @confirm="goSearch"
-          />
-          <view class="search-submit" @click="goSearch">搜索</view>
+        <view class="hero-message" @click="go('/pages/user/messages')">
+          <uni-icons class="hero-message-icon" type="notification" :size="20" color="#595f69"></uni-icons>
+          <text v-if="unreadCount" class="hero-message-dot"></text>
         </view>
       </view>
-    </view>
 
-    <view class="market-shell category-shell">
-      <view class="market-card category-card">
-        <view class="category-grid">
+      <view class="search-box">
+        <uni-icons class="search-icon" type="search" :size="18" color="#a9adb6"></uni-icons>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          placeholder="寻物探宝，搜索闲置好物..."
+          confirm-type="search"
+          @confirm="goSearch"
+        />
+        <view class="search-submit" @click="goSearch">搜索</view>
+      </view>
+
+      <view class="hero-banner" @click="go('/pages/goods/list')">
+        <view class="hero-banner-pattern"></view>
+        <view class="hero-banner-copy">
+          <view class="hero-badge">旧物新生计划</view>
+          <view class="hero-banner-title">旧物生辉</view>
+          <view class="hero-banner-subtitle">让闲置流转，书卷常新</view>
+        </view>
+
+        <view class="hero-banner-footer">
+          <view class="hero-stat">
+            <text class="hero-stat-value">{{ homeGoodsCount }}</text>
+            <text class="hero-stat-label">最新在售</text>
+          </view>
+          <view class="hero-entry">
+            <text>去逛逛</text>
+            <uni-icons class="hero-entry-arrow" type="arrow-right" :size="14" color="#ffffff"></uni-icons>
+          </view>
+        </view>
+      </view>
+
+      <view class="category-section">
+        <view class="primary-category-row">
           <view
             v-for="item in categories"
-            :key="item.id"
-            class="category-item"
+            :key="`primary-${item.id}`"
+            class="primary-category-item"
             @click="openCategory(item)"
           >
-            <view class="category-icon">{{ item.icon }}</view>
-            <text class="category-label">{{ item.shortName || item.name }}</text>
+            <view class="primary-category-icon">
+              <uni-icons :type="item.iconType" :size="23" color="#8f949d"></uni-icons>
+            </view>
+            <text class="primary-category-label">{{ item.shortName || item.name }}</text>
           </view>
         </view>
       </view>
 
-      <view class="market-card recommend-card">
-        <view class="market-row-head">
-          <view class="head-main">
-            <view class="head-icon orange">荐</view>
+      <view class="section-block">
+        <view class="section-head">
+          <view class="section-title-wrap">
+            <view class="section-marker"></view>
             <view>
-              <view class="market-section-title">为你推荐</view>
-              <view class="market-section-subtitle">优先展示最近发布和浏览热度更高的商品。</view>
+              <view class="section-title">编辑精选</view>
+              <view class="section-subtitle">基于最新上架内容，为你先挑一轮值得看的好物。</view>
             </view>
           </view>
-          <view class="head-link" @click="shuffleRecommend">换一批</view>
+          <view class="section-link" @click="shuffleRecommend">
+            <text>换一批</text>
+            <uni-icons class="section-link-arrow" type="arrow-right" :size="14" color="#9da2ab"></uni-icons>
+          </view>
         </view>
 
-        <scroll-view v-if="recommendGoods.length" scroll-x class="recommend-scroll" show-scrollbar="false">
+        <scroll-view v-if="recommendGoods.length" scroll-x class="recommend-scroll" :show-scrollbar="false">
           <view class="recommend-row">
             <view
               v-for="item in recommendGoods"
               :key="`recommend-${item.id}`"
               class="recommend-item"
             >
-              <ProductCard :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
+              <ProductCard variant="home" :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
             </view>
           </view>
         </scroll-view>
 
-        <EmptyState
-          v-else
-          icon="📦"
-          title="暂无推荐商品"
-          description="当前没有可展示的商品，接入后端数据后会在这里展示。"
-        />
+        <view v-else class="market-card empty-card">
+          <EmptyState
+            variant="home"
+            icon="📦"
+            title="暂无推荐商品"
+            description="当前没有可展示的商品，接入后端数据后会在这里展示。"
+          />
+        </view>
       </view>
 
-      <view class="market-row-head latest-head">
-        <view class="head-main">
-          <view class="head-icon green">新</view>
-          <view>
-            <view class="market-section-title">最新发布</view>
-            <view class="market-section-subtitle">支持直接浏览、收藏和进入详情页查看商品。</view>
+      <view class="section-block latest-section">
+        <view class="section-head">
+          <view class="section-title-wrap">
+            <view class="section-marker accent"></view>
+            <view>
+              <view class="section-title">最新发布</view>
+              <view class="section-subtitle">支持直接浏览、收藏，并进入详情页查看商品。</view>
+            </view>
+          </view>
+          <view class="section-link" @click="go('/pages/goods/list')">
+            <text>查看更多</text>
+            <uni-icons class="section-link-arrow" type="arrow-right" :size="14" color="#9da2ab"></uni-icons>
           </view>
         </view>
-        <view class="head-link" @click="go('/pages/goods/list')">查看更多</view>
-      </view>
 
-      <view v-if="latestGoods.length" class="goods-grid">
-        <ProductCard
-          v-for="item in latestGoods"
-          :key="item.id"
-          :goods="item"
-          @click="openDetail(item.id)"
-          @favorite-change="handleFavoriteChange"
-        />
-      </view>
+        <view v-if="latestGoods.length" class="goods-grid">
+          <ProductCard
+            v-for="item in latestGoods"
+            :key="item.id"
+            variant="home"
+            :goods="item"
+            @click="openDetail(item.id)"
+            @favorite-change="handleFavoriteChange"
+          />
+        </view>
 
-      <view v-else class="market-card latest-empty-card">
-        <EmptyState
-          icon="🗂"
-          title="暂无商品"
-          description="当前商品列表为空，后端服务可用后会自动显示最新发布内容。"
-        />
+        <view v-else class="market-card empty-card">
+          <EmptyState
+            variant="home"
+            icon="🗂"
+            title="暂无商品"
+            description="当前商品列表为空，后端服务可用后会自动显示最新发布内容。"
+          />
+        </view>
       </view>
     </view>
 
@@ -111,13 +145,13 @@
 <script>
 import { getGoodsList } from '../../api/goods'
 import { getUnreadMessageCount } from '../../api/message'
+import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import AppTabBar from '../../components/AppTabBar.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import ProductCard from '../../components/ProductCard.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
-  getHomeCategories,
   normalizeGoodsItem,
   patchGoodsFavoriteState,
   sortGoodsList
@@ -126,6 +160,7 @@ import { syncThemePage } from '../../utils/theme'
 
 export default {
   components: {
+    UniIcons,
     AppTabBar,
     EmptyState,
     ProductCard
@@ -137,7 +172,12 @@ export default {
       authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
       searchKeyword: '',
-      categories: getHomeCategories(),
+      categories: [
+        { id: 'all', value: 'all', name: '全部', shortName: '全部', iconType: 'shop' },
+        { id: 1, value: 1, name: '数码电子', shortName: '数码', iconType: 'gear' },
+        { id: 2, value: 2, name: '教材书籍', shortName: '书籍', iconType: 'compose' },
+        { id: 6, value: 6, name: '其他', shortName: '其他', iconType: 'more-filled' }
+      ],
       goodsList: [],
       recommendOffset: 0,
       unreadCountValue: 0
@@ -160,6 +200,9 @@ export default {
     },
     latestGoods() {
       return this.normalizedGoods.slice(0, 6)
+    },
+    homeGoodsCount() {
+      return this.normalizedGoods.length || 0
     }
   },
   onLoad() {
@@ -236,167 +279,309 @@ export default {
 
 <style scoped>
 .home-page {
-  padding-bottom: 180rpx;
+  min-height: 100vh;
+  padding-bottom: 196rpx;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.92) 0, rgba(255, 255, 255, 0) 32%),
+    linear-gradient(180deg, #edeff1 0%, #f8f7f3 260rpx, #fcfbf7 100%);
 }
 
-.home-hero {
-  background: linear-gradient(135deg, #2d6a4f 0%, #1b5e20 100%);
-  padding-bottom: 32rpx;
+.home-shell {
+  padding-bottom: 48rpx;
 }
 
-.hero-top {
+.home-topbar {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 20rpx;
-  margin-bottom: 28rpx;
+  justify-content: space-between;
+  gap: 24rpx;
+  margin-bottom: 26rpx;
 }
 
-.hero-title {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 10rpx;
+.brand-copy {
+  flex: 1;
 }
 
-.hero-subtitle {
+.brand-line {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 8rpx;
+}
+
+.brand-title {
+  font-size: 48rpx;
+  line-height: 1.1;
+  font-weight: 500;
+  color: #2d2d2d;
+  letter-spacing: 6rpx;
+}
+
+.brand-spark {
+  transform: translateY(-8rpx);
+  line-height: 1;
+}
+
+.brand-subtitle {
   font-size: 24rpx;
-  line-height: 1.8;
-  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.7;
+  color: #8a8f98;
 }
 
 .hero-message {
-  width: 72rpx;
-  height: 72rpx;
+  width: 76rpx;
+  height: 76rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(214, 217, 222, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  box-shadow: 0 18rpx 36rpx rgba(25, 31, 38, 0.06);
 }
 
 .hero-message-icon {
-  color: #ffffff;
-  font-size: 30rpx;
-  font-weight: 700;
+  line-height: 1;
 }
 
 .hero-message-dot {
   position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  width: 14rpx;
-  height: 14rpx;
+  top: 12rpx;
+  right: 12rpx;
+  width: 16rpx;
+  height: 16rpx;
   border-radius: 50%;
-  background: #f77f00;
+  background: #d95a5a;
+  border: 3rpx solid #ffffff;
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  gap: 14rpx;
-  height: 92rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-radius: 24rpx;
+  gap: 16rpx;
+  min-height: 96rpx;
+  padding: 10rpx 12rpx 10rpx 26rpx;
+  background: rgba(242, 243, 245, 0.96);
+  border-radius: 999rpx;
+  box-shadow: inset 0 0 0 1rpx rgba(226, 228, 231, 0.8);
 }
 
 .search-icon {
-  font-size: 30rpx;
-  color: #adb5bd;
+  line-height: 1;
 }
 
 .search-input {
   flex: 1;
-  height: 92rpx;
+  height: 76rpx;
   font-size: 26rpx;
-  color: #2c3e50;
+  color: #444a54;
 }
 
 .search-submit {
-  min-width: 110rpx;
-  height: 64rpx;
-  border-radius: 18rpx;
-  background: #2d6a4f;
+  min-width: 118rpx;
+  height: 72rpx;
+  padding: 0 26rpx;
+  border-radius: 999rpx;
+  background: #232323;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 22rpx;
   font-weight: 600;
+  letter-spacing: 2rpx;
 }
 
-.category-shell {
-  margin-top: -22rpx;
+.hero-banner {
+  position: relative;
+  overflow: hidden;
+  margin-top: 28rpx;
+  padding: 30rpx 30rpx 26rpx;
+  border-radius: 30rpx;
+  background: linear-gradient(135deg, #efefee 0%, #d8d9dc 100%);
+  box-shadow: 0 22rpx 42rpx rgba(35, 35, 35, 0.08);
 }
 
-.category-card,
-.recommend-card {
-  padding: 24rpx;
+.hero-banner-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(182, 183, 187, 0.52) 0, rgba(182, 183, 187, 0.52) 18rpx, transparent 18rpx, transparent 36rpx),
+    repeating-linear-gradient(45deg, transparent 0, transparent 18rpx, rgba(182, 183, 187, 0.42) 18rpx, rgba(182, 183, 187, 0.42) 36rpx);
+  background-position: 0 0, 18rpx 18rpx;
+}
+
+.hero-banner-copy,
+.hero-banner-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 48rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.72);
+  color: #6a6f77;
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
   margin-bottom: 24rpx;
 }
 
-.category-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 20rpx 10rpx;
+.hero-banner-title {
+  font-size: 44rpx;
+  font-weight: 600;
+  line-height: 1.18;
+  color: #30343a;
+  letter-spacing: 8rpx;
+  margin-bottom: 8rpx;
 }
 
-.category-item {
+.hero-banner-subtitle {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #5d646d;
+}
+
+.hero-banner-footer {
+  margin-top: 34rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.hero-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  color: #3b4047;
+}
+
+.hero-stat-value {
+  font-size: 42rpx;
+  font-weight: 600;
+}
+
+.hero-stat-label {
+  font-size: 22rpx;
+  color: #7b8088;
+}
+
+.hero-entry {
+  min-width: 148rpx;
+  height: 66rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: rgba(35, 35, 35, 0.96);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.hero-entry-arrow {
+  line-height: 1;
+}
+
+.category-section {
+  margin-top: 38rpx;
+}
+
+.primary-category-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18rpx;
+}
+
+.primary-category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10rpx;
+  gap: 14rpx;
 }
 
-.category-icon {
-  width: 84rpx;
-  height: 84rpx;
-  border-radius: 24rpx;
-  background: #e8f5e9;
+.primary-category-icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: rgba(250, 250, 249, 0.96);
+  border: 1rpx solid rgba(234, 236, 238, 0.96);
+  box-shadow: 0 16rpx 30rpx rgba(31, 35, 41, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38rpx;
 }
 
-.category-label {
+.primary-category-label {
   font-size: 22rpx;
-  color: #2c3e50;
+  color: #646a74;
 }
 
-.head-main {
+.section-block {
+  margin-top: 40rpx;
+}
+
+.section-head {
   display: flex;
   align-items: center;
-  gap: 18rpx;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.section-title-wrap {
   flex: 1;
-}
-
-.head-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 18rpx;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 28rpx;
-  font-weight: 700;
+  align-items: flex-start;
+  gap: 14rpx;
 }
 
-.head-icon.orange {
-  background: linear-gradient(135deg, #f77f00 0%, #ff9b2f 100%);
+.section-marker {
+  width: 8rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  background: #a53d3d;
+  margin-top: 6rpx;
 }
 
-.head-icon.green {
-  background: linear-gradient(135deg, #2d6a4f 0%, #1b5e20 100%);
+.section-marker.accent {
+  background: #2c2f34;
 }
 
-.head-link {
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #2f3339;
+  margin-bottom: 8rpx;
+}
+
+.section-subtitle {
   font-size: 22rpx;
-  color: #2d6a4f;
+  line-height: 1.7;
+  color: #8a8f98;
+}
+
+.section-link {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 22rpx;
+  color: #9da2ab;
   white-space: nowrap;
+}
+
+.section-link-arrow {
+  line-height: 1;
 }
 
 .recommend-scroll {
@@ -406,25 +591,29 @@ export default {
 
 .recommend-row {
   display: inline-flex;
-  gap: 18rpx;
+  gap: 20rpx;
   padding-right: 16rpx;
 }
 
 .recommend-item {
-  width: 280rpx;
+  width: 306rpx;
 }
 
-.latest-head {
-  margin-bottom: 20rpx;
-}
-
-.latest-empty-card {
-  padding: 12rpx;
+.latest-section {
+  padding-bottom: 18rpx;
 }
 
 .goods-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18rpx;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20rpx;
+}
+
+.empty-card {
+  overflow: hidden;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(235, 237, 240, 0.9);
+  box-shadow: 0 18rpx 34rpx rgba(31, 35, 41, 0.05);
 }
 </style>

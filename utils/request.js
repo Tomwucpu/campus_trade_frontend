@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/auth'
 
-export const BASE_URL = 'http://localhost:8080/api/v1'
-// export const BASE_URL = 'http://8.163.21.209:83/api/v1'
+// export const BASE_URL = 'http://localhost:8080/api/v1'
+export const BASE_URL = 'http://8.163.21.209:83/api/v1'
 
 function handleUnauthorized(authStore) {
   authStore.logout()

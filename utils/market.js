@@ -2,13 +2,13 @@ const FAVORITE_KEY = 'market_favorite_goods_ids'
 const MESSAGE_KEY = 'market_message_items'
 
 const CATEGORY_META = [
-  { id: 'all', value: 'all', name: '全部', shortName: '全部', icon: '📦', key: 'all', keywords: [] },
-  { id: 2, value: 2, name: '教材书籍', shortName: '教材', icon: '📚', key: 'books', keywords: ['教材', '图书', '书'] },
-  { id: 1, value: 1, name: '数码电子', shortName: '数码', icon: '📱', key: 'electronics', keywords: ['数码', '电子', '耳机', '手机', '电脑', '键盘'] },
-  { id: 5, value: 5, name: '运动器材', shortName: '运动', icon: '⚽', key: 'sports', keywords: ['运动', '器材', '球', '滑板', '自行车'] },
-  { id: 3, value: 3, name: '生活用品', shortName: '日用', icon: '🎒', key: 'daily', keywords: ['生活', '日用', '台灯', '水杯', '收纳'] },
-  { id: 4, value: 4, name: '服饰鞋包', shortName: '服饰', icon: '🧥', key: 'fashion', keywords: ['服饰', '鞋包', '衣服', '包'] },
-  { id: 6, value: 6, name: '其他', shortName: '其他', icon: '✨', key: 'other', keywords: ['其他'] }
+  { id: 'all', value: 'all', name: '全部', shortName: '全部', key: 'all', keywords: [] },
+  { id: 2, value: 2, name: '教材书籍', shortName: '教材', key: 'books', keywords: ['教材', '图书', '书'] },
+  { id: 1, value: 1, name: '数码电子', shortName: '数码', key: 'electronics', keywords: ['数码', '电子', '耳机', '手机', '电脑', '键盘'] },
+  { id: 5, value: 5, name: '运动器材', shortName: '运动', key: 'sports', keywords: ['运动', '器材', '球', '滑板', '自行车'] },
+  { id: 3, value: 3, name: '生活用品', shortName: '日用', key: 'daily', keywords: ['生活', '日用', '台灯', '水杯', '收纳'] },
+  { id: 4, value: 4, name: '服饰鞋包', shortName: '服饰', key: 'fashion', keywords: ['服饰', '鞋包', '衣服', '包'] },
+  { id: 6, value: 6, name: '其他', shortName: '其他', key: 'other', keywords: ['其他'] }
 ]
 
 const CONDITION_OPTIONS = [
@@ -279,7 +279,6 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     categoryId: item.categoryId || categoryMeta.value,
     categoryLabel: item.categoryLabel || item.categoryName || categoryMeta.name,
     categoryShortName: categoryMeta.shortName,
-    categoryIcon: categoryMeta.icon,
     categoryKey: categoryMeta.key,
     imageUrl,
     thumbUrl,
@@ -424,8 +423,7 @@ export function getDefaultCategoryList() {
   return CATEGORY_META.filter((item) => item.value !== 'all').map((item) => ({
     id: item.value,
     name: item.name,
-    shortName: item.shortName,
-    icon: item.icon
+    shortName: item.shortName
   }))
 }
 
