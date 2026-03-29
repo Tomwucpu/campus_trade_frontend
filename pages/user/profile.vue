@@ -6,7 +6,7 @@
           <view class="hero-header">
             <view class="avatar-ring">
               <view class="avatar-core">
-                <uni-icons type="medal-filled" :size="26" color="#f2c361"></uni-icons>
+                <text class="bi bi-mortarboard-fill icon-font avatar-symbol"></text>
               </view>
             </view>
 
@@ -16,7 +16,7 @@
             </view>
 
             <view class="hero-action" @click="go('/pages/goods/publish')">
-              <uni-icons type="compose" :size="18" color="#ddd8d3"></uni-icons>
+              <text class="bi bi-pencil-square icon-font hero-action-icon"></text>
             </view>
           </view>
 
@@ -42,37 +42,37 @@
         <view class="menu-item" @click="go('/pages/goods/my')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
-              <uni-icons type="paperplane-filled" :size="18" color="#7d7164"></uni-icons>
+              <text class="bi bi-box-seam icon-font menu-icon-font"></text>
             </view>
             <text class="menu-text">我的发布</text>
           </view>
           <view class="menu-right">
-            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+            <text class="bi bi-chevron-right icon-font arrow-icon"></text>
           </view>
         </view>
 
         <view class="menu-item" @click="go('/pages/user/favorites')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
-              <uni-icons type="heart" :size="18" color="#7d7164"></uni-icons>
+              <text class="bi bi-heart icon-font menu-icon-font"></text>
             </view>
             <text class="menu-text">我的收藏</text>
           </view>
           <view class="menu-right">
             <view v-if="favoriteCount > 0" class="menu-badge">{{ formatBadge(favoriteCount) }}</view>
-            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+            <text class="bi bi-chevron-right icon-font arrow-icon"></text>
           </view>
         </view>
 
         <view class="menu-item" @click="go('/pages/order/list')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
-              <uni-icons type="wallet-filled" :size="18" color="#7d7164"></uni-icons>
+              <text class="bi bi-bag-check icon-font menu-icon-font"></text>
             </view>
             <text class="menu-text">我的订单</text>
           </view>
           <view class="menu-right">
-            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+            <text class="bi bi-chevron-right icon-font arrow-icon"></text>
           </view>
         </view>
       </view>
@@ -81,45 +81,47 @@
         <view class="menu-item" @click="go('/pages/chat/list')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
-              <uni-icons type="chatbubble-filled" :size="18" color="#7d7164"></uni-icons>
+              <text class="bi bi-chat-left-dots icon-font menu-icon-font"></text>
             </view>
             <text class="menu-text">聊天消息</text>
           </view>
           <view class="menu-right">
             <view v-if="chatUnreadCount > 0" class="menu-badge">{{ formatBadge(chatUnreadCount) }}</view>
-            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+            <text class="bi bi-chevron-right icon-font arrow-icon"></text>
           </view>
         </view>
 
         <view class="menu-item" @click="go('/pages/user/messages')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
-              <uni-icons type="notification-filled" :size="18" color="#7d7164"></uni-icons>
+              <text class="bi bi-bell icon-font menu-icon-font"></text>
             </view>
             <text class="menu-text">消息通知</text>
           </view>
           <view class="menu-right">
             <view v-if="unreadCount > 0" class="menu-badge">{{ formatBadge(unreadCount) }}</view>
-            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+            <text class="bi bi-chevron-right icon-font arrow-icon"></text>
           </view>
         </view>
 
         <view class="menu-item" @click="go('/pages/goods/publish')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
-              <uni-icons type="compose" :size="18" color="#7d7164"></uni-icons>
+              <text class="bi bi-plus-circle icon-font menu-icon-font"></text>
             </view>
             <text class="menu-text">继续发布</text>
           </view>
           <view class="menu-right">
-            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+            <text class="bi bi-chevron-right icon-font arrow-icon"></text>
           </view>
         </view>
       </view>
 
       <view class="auth-card" @click="toggleLoginAction">
-        <uni-icons :type="isLoggedIn ? 'redo' : 'personadd'" :size="17" color="#8f7c67"></uni-icons>
-        <text class="auth-text">{{ loginActionText }}</text>
+        <view class="auth-inner">
+          <text class="icon-font auth-icon" :class="isLoggedIn ? 'bi bi-box-arrow-right' : 'bi bi-box-arrow-in-right'"></text>
+          <text class="auth-text">{{ loginActionText }}</text>
+        </view>
       </view>
     </view>
 
@@ -131,7 +133,6 @@
 import { getProfile } from '../../api/auth'
 import { getChatUnreadCount } from '../../api/chat'
 import AppTabBar from '../../components/AppTabBar.vue'
-import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import { useAuthStore } from '../../store/auth'
 import { maskPhone, maskStudentNo } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
@@ -151,8 +152,7 @@ function createEmptyProfile() {
 
 export default {
   components: {
-    AppTabBar,
-    UniIcons
+    AppTabBar
   },
   data() {
     return {
@@ -292,6 +292,14 @@ export default {
   padding-bottom: 8rpx;
 }
 
+.icon-font {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-style: normal;
+}
+
 .hero-card {
   border-radius: 34rpx;
   padding: 34rpx 30rpx 28rpx;
@@ -327,6 +335,11 @@ export default {
   justify-content: center;
 }
 
+.avatar-symbol {
+  color: #f2c361;
+  font-size: 34rpx;
+}
+
 .hero-copy {
   flex: 1;
   min-width: 0;
@@ -357,6 +370,11 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.hero-action-icon {
+  color: #ddd8d3;
+  font-size: 28rpx;
 }
 
 .hero-stats {
@@ -471,6 +489,11 @@ export default {
   justify-content: center;
 }
 
+.menu-icon-font {
+  color: #7d7164;
+  font-size: 27rpx;
+}
+
 .menu-text {
   font-size: 32rpx;
   font-weight: 600;
@@ -481,6 +504,11 @@ export default {
   display: flex;
   align-items: center;
   gap: 14rpx;
+}
+
+.arrow-icon {
+  color: #b7ad9f;
+  font-size: 24rpx;
 }
 
 .menu-badge {
@@ -506,14 +534,30 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
+  text-align: center;
   color: #8f7c67;
+}
+
+.auth-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin: 0 auto;
 }
 
 .auth-text {
   font-size: 31rpx;
   font-weight: 600;
   color: #8f7c67;
+  line-height: 1;
+}
+
+.auth-icon {
+  color: #8f7c67;
+  font-size: 36rpx;
+  width: 30rpx;
+  text-align: center;
 }
 
 .profile-page :deep(.tabbar-shell) {
