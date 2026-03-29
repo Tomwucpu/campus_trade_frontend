@@ -27,7 +27,8 @@
     <view class="market-shell page-body">
       <EmptyState
         v-if="!displayList.length"
-        icon="货"
+        variant="list"
+        icon="bi bi-box-seam"
         title="当前状态下还没有商品"
         description="你可以继续发布新的闲置，或者切换到其他状态查看。"
         button-text="去发布"

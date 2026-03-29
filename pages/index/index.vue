@@ -94,7 +94,7 @@
         <view v-else class="market-card empty-card">
           <EmptyState
             variant="home"
-            icon="📦"
+            icon="bi bi-box"
             title="暂无推荐商品"
             description="当前没有可展示的商品，接入后端数据后会在这里展示。"
           />
@@ -130,7 +130,7 @@
         <view v-else class="market-card empty-card">
           <EmptyState
             variant="home"
-            icon="🗂"
+            icon="bi bi-folder2-open"
             title="暂无商品"
             description="当前商品列表为空，后端服务可用后会自动显示最新发布内容。"
           />

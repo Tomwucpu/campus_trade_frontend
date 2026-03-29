@@ -15,7 +15,7 @@
 
     <view class="market-shell page-body">
       <view v-if="!messages.length" class="market-card empty-wrap">
-        <EmptyState icon="铃" title="暂无消息" description="你的订单动态、审核结果和系统通知会展示在这里。" />
+        <EmptyState icon="bi bi-bell" title="暂无消息" description="你的订单动态、审核结果和系统通知会展示在这里。" />
       </view>
 
       <view v-else class="message-list">

@@ -97,7 +97,7 @@
       <view class="market-shell detail-empty-shell">
         <view class="market-card detail-empty-card">
           <EmptyState
-            icon="📦"
+            icon="bi bi-box"
             title="暂无商品数据"
             description="当前没有可展示的商品信息，请在后端服务可用后再试。"
           />

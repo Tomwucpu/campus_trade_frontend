@@ -13,7 +13,8 @@
     <view class="market-shell page-body">
       <EmptyState
         v-if="!displayList.length"
-        icon="♥"
+        variant="list"
+        icon="bi bi-heart"
         title="还没有收藏商品"
         description="看到心仪的商品就点一下小心心，方便稍后回来看。"
         button-text="去逛逛"

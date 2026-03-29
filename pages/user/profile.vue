@@ -282,9 +282,8 @@ export default {
 <style scoped>
 .profile-page {
   background:
-    radial-gradient(circle at 8% 0%, rgba(62, 53, 44, 0.09) 0, transparent 30%),
-    radial-gradient(circle at 96% 24%, rgba(106, 78, 52, 0.08) 0, transparent 26%),
-    #f4f0ea;
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.92) 0, rgba(255, 255, 255, 0) 32%),
+    linear-gradient(180deg, #edeff1 0%, #f8f7f3 260rpx, #fcfbf7 100%);
   padding-bottom: 180rpx;
 }
 

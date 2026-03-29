@@ -90,7 +90,8 @@
 
       <EmptyState
         v-if="!displayList.length"
-        icon="🔎"
+        variant="list"
+        icon="bi bi-search"
         title="没有找到符合条件的商品"
         description="试试换个关键词，或者清空筛选条件后重新看看。"
         button-text="清空筛选"

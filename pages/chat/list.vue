@@ -13,7 +13,7 @@
     <view class="market-shell page-body">
       <view v-if="!conversations.length" class="market-card empty-wrap">
         <EmptyState
-          icon="聊"
+          icon="bi bi-chat-left-text"
           title="还没有聊天记录"
           description="浏览商品后点击“联系商家”，这里会保留你和卖家或买家的聊天会话。"
           buttonText="去逛逛"

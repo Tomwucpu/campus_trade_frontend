@@ -26,7 +26,7 @@
 
     <view class="market-shell messages-shell">
       <view v-if="!messages.length" class="market-card empty-wrap">
-        <EmptyState icon="聊" title="还没有聊天内容" description="可以先确认商品成色、价格、交易时间和见面地点。" />
+        <EmptyState icon="bi bi-chat-left-dots" title="还没有聊天内容" description="可以先确认商品成色、价格、交易时间和见面地点。" />
       </view>
 
       <view v-else class="message-list">
