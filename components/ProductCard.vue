@@ -1,5 +1,5 @@
 <template>
-  <view class="product-card market-card" :class="cardClasses" @click="$emit('click')">
+  <view class="product-card market-card" @click="$emit('click')">
     <view v-if="goods.imageUrl" class="product-cover">
       <image class="product-image" :src="goods.imageUrl" mode="aspectFill"></image>
       <view class="product-cover-shadow"></view>
@@ -38,10 +38,6 @@ export default {
     goods: {
       type: Object,
       default: () => ({})
-    },
-    variant: {
-      type: String,
-      default: 'default'
     }
   },
   data() {
@@ -57,14 +53,6 @@ export default {
       deep: true,
       handler(value) {
         this.favoriteState = Boolean(value && value.isFavorite)
-      }
-    }
-  },
-  computed: {
-    cardClasses() {
-      return {
-        'without-image': !this.goods.imageUrl,
-        'product-card--home': this.variant === 'home'
       }
     }
   },
@@ -115,23 +103,16 @@ export default {
 .product-card {
   overflow: hidden;
   position: relative;
-}
-
-.product-card.product-card--home {
   border-radius: 26rpx;
   border: 1rpx solid rgba(235, 237, 240, 0.92);
   background: rgba(248, 248, 246, 0.96);
   box-shadow: 0 18rpx 34rpx rgba(31, 35, 41, 0.06);
 }
 
-.product-card.without-image {
-  padding-top: 0;
-}
-
 .product-cover {
   position: relative;
-  height: 260rpx;
-  background: #f8f9fa;
+  height: 286rpx;
+  background: #e8e8e7;
 }
 
 .product-image {
@@ -142,32 +123,13 @@ export default {
 .product-cover-shadow {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.18) 100%);
-}
-
-.product-card--home .product-cover {
-  height: 286rpx;
-  background: #e8e8e7;
-}
-
-.product-card--home .product-cover-shadow {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.06) 100%);
 }
 
 .product-condition {
   position: absolute;
-  left: 16rpx;
-  bottom: 16rpx;
-  padding: 8rpx 14rpx;
-  border-radius: 14rpx;
-  background: #e8f5e9;
-  color: #1b5e20;
-  font-size: 20rpx;
-  font-weight: 600;
-}
-
-.product-card--home .product-condition {
   top: 16rpx;
+  left: 16rpx;
   bottom: auto;
   padding: 6rpx 14rpx;
   border-radius: 12rpx;
@@ -181,38 +143,27 @@ export default {
   position: absolute;
   top: 16rpx;
   right: 16rpx;
-  width: 56rpx;
-  height: 56rpx;
+  width: 58rpx;
+  height: 58rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
-  box-shadow: 0 8rpx 16rpx rgba(44, 62, 80, 0.08);
-}
-
-.product-card--home .product-favorite {
-  width: 58rpx;
-  height: 58rpx;
-  background: rgba(255, 255, 255, 0.92);
-  color: #8c9199;
   box-shadow: 0 10rpx 18rpx rgba(31, 35, 41, 0.08);
+  color: #8c9199;
 }
 
 .product-body {
-  padding: 20rpx;
-}
-
-.product-card--home .product-body {
   padding: 22rpx 20rpx 24rpx;
 }
 
 .product-title {
-  min-height: 78rpx;
-  font-size: 26rpx;
-  line-height: 1.45;
-  color: #2c3e50;
+  min-height: 72rpx;
+  font-size: 28rpx;
+  line-height: 1.55;
+  color: #3a3f46;
   margin-bottom: 14rpx;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -220,41 +171,23 @@ export default {
   overflow: hidden;
 }
 
-.product-card--home .product-title {
-  min-height: 72rpx;
-  font-size: 28rpx;
-  line-height: 1.55;
-  color: #3a3f46;
-}
-
 .product-price-row {
   display: flex;
   align-items: baseline;
   gap: 10rpx;
-  margin-bottom: 12rpx;
-}
-
-.product-card--home .product-price-row {
   margin-bottom: 14rpx;
 }
 
 .product-price {
   font-size: 34rpx;
-}
-
-.product-card--home .product-price {
   color: #c0554f;
   font-weight: 600;
 }
 
 .product-origin {
   font-size: 20rpx;
-  color: #adb5bd;
-  text-decoration: line-through;
-}
-
-.product-card--home .product-origin {
   color: #afb4bc;
+  text-decoration: line-through;
 }
 
 .product-meta {
@@ -263,21 +196,13 @@ export default {
   justify-content: space-between;
   gap: 12rpx;
   font-size: 20rpx;
-  color: #6c757d;
-}
-
-.product-card--home .product-meta {
   color: #8e949d;
 }
 
 .product-seller {
-  max-width: 120rpx;
+  max-width: 132rpx;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.product-card--home .product-seller {
-  max-width: 132rpx;
 }
 </style>

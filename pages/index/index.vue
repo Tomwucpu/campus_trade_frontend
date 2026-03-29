@@ -86,7 +86,7 @@
               :key="`recommend-${item.id}`"
               class="recommend-item"
             >
-              <ProductCard variant="home" :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
+              <ProductCard :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
             </view>
           </view>
         </scroll-view>
@@ -120,7 +120,6 @@
           <ProductCard
             v-for="item in latestGoods"
             :key="item.id"
-            variant="home"
             :goods="item"
             @click="openDetail(item.id)"
             @favorite-change="handleFavoriteChange"
