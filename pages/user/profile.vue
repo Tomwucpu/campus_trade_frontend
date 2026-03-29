@@ -1,90 +1,125 @@
 <template>
   <view class="market-page profile-page" :class="themeClass">
     <view class="profile-hero safe-top">
-      <view class="hero-orb hero-right"></view>
-      <view class="hero-orb hero-left"></view>
       <view class="market-shell">
-        <view class="profile-header">
-          <view class="profile-avatar">{{ profileInitial }}</view>
-          <view class="profile-copy">
-            <view class="profile-name">{{ displayName }}</view>
-            <view class="profile-meta">{{ profileSummary }}</view>
-            <view class="profile-badges">
-              <view class="profile-badge">认证学生</view>
-              <view class="profile-badge">交易可信</view>
+        <view class="hero-card">
+          <view class="hero-header">
+            <view class="avatar-ring">
+              <view class="avatar-core">
+                <uni-icons type="medal-filled" :size="26" color="#f2c361"></uni-icons>
+              </view>
+            </view>
+
+            <view class="hero-copy">
+              <view class="hero-name">{{ displayName }}</view>
+              <view class="hero-meta">{{ profileSummary }}</view>
+            </view>
+
+            <view class="hero-action" @click="go('/pages/goods/publish')">
+              <uni-icons type="compose" :size="18" color="#ddd8d3"></uni-icons>
             </view>
           </view>
-          <view class="profile-edit" @click="go('/pages/goods/publish')">发</view>
-        </view>
 
-        <view class="stats-grid">
-          <view v-for="item in stats" :key="item.label" class="stat-item">
-            <view class="stat-num">{{ item.value }}</view>
-            <view class="stat-label">{{ item.label }}</view>
+          <view class="hero-stats">
+            <view v-for="item in stats" :key="item.label" class="hero-stat">
+              <view class="hero-stat-value">{{ item.value }}</view>
+              <view class="hero-stat-label">{{ item.label }}</view>
+            </view>
           </view>
         </view>
       </view>
     </view>
 
     <view class="market-shell profile-shell">
-      <view class="market-card menu-card">
+      <view class="notice-card" @click="go('/pages/user/messages')">
+        <view class="notice-count" :class="{ muted: !isLoggedIn || totalUnreadCount <= 0 }">
+          {{ formatBadge(totalUnreadCount) }}
+        </view>
+        <text class="notice-text">{{ unreadSummaryText }}</text>
+      </view>
+
+      <view class="menu-group">
         <view class="menu-item" @click="go('/pages/goods/my')">
           <view class="menu-main">
-            <view class="menu-icon">发</view>
+            <view class="menu-icon-wrap">
+              <uni-icons type="paperplane-filled" :size="18" color="#7d7164"></uni-icons>
+            </view>
             <text class="menu-text">我的发布</text>
           </view>
-          <text class="menu-value">{{ profile.onSaleCount || 0 }}</text>
+          <view class="menu-right">
+            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+          </view>
         </view>
 
         <view class="menu-item" @click="go('/pages/user/favorites')">
           <view class="menu-main">
-            <view class="menu-icon">藏</view>
+            <view class="menu-icon-wrap">
+              <uni-icons type="heart" :size="18" color="#7d7164"></uni-icons>
+            </view>
             <text class="menu-text">我的收藏</text>
           </view>
-          <text class="menu-value">{{ favoriteCount }}</text>
-        </view>
-
-        <view class="menu-item" @click="go('/pages/chat/list')">
-          <view class="menu-main">
-            <view class="menu-icon">聊</view>
-            <text class="menu-text">聊天消息</text>
+          <view class="menu-right">
+            <view v-if="favoriteCount > 0" class="menu-badge">{{ formatBadge(favoriteCount) }}</view>
+            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
           </view>
-          <text class="menu-value">{{ chatUnreadCount }}</text>
-        </view>
-
-        <view class="menu-item" @click="go('/pages/user/messages')">
-          <view class="menu-main">
-            <view class="menu-icon">信</view>
-            <text class="menu-text">消息通知</text>
-          </view>
-          <text class="menu-value">{{ unreadCount }}</text>
         </view>
 
         <view class="menu-item" @click="go('/pages/order/list')">
           <view class="menu-main">
-            <view class="menu-icon">单</view>
+            <view class="menu-icon-wrap">
+              <uni-icons type="wallet-filled" :size="18" color="#7d7164"></uni-icons>
+            </view>
             <text class="menu-text">我的订单</text>
           </view>
-          <text class="menu-value">{{ profile.orderCount || 0 }}</text>
+          <view class="menu-right">
+            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+          </view>
         </view>
       </view>
 
-      <view class="market-card menu-card">
-        <view class="menu-item" @click="go('/pages/goods/publish')">
+      <view class="menu-group">
+        <view class="menu-item" @click="go('/pages/chat/list')">
           <view class="menu-main">
-            <view class="menu-icon light">发</view>
-            <text class="menu-text">继续发布</text>
+            <view class="menu-icon-wrap">
+              <uni-icons type="chatbubble-filled" :size="18" color="#7d7164"></uni-icons>
+            </view>
+            <text class="menu-text">聊天消息</text>
           </view>
-          <text class="menu-arrow">></text>
+          <view class="menu-right">
+            <view v-if="chatUnreadCount > 0" class="menu-badge">{{ formatBadge(chatUnreadCount) }}</view>
+            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+          </view>
         </view>
 
-        <view class="menu-item" @click="toggleLoginAction">
+        <view class="menu-item" @click="go('/pages/user/messages')">
           <view class="menu-main">
-            <view class="menu-icon light">{{ isLoggedIn ? '退' : '登' }}</view>
-            <text class="menu-text">{{ loginActionText }}</text>
+            <view class="menu-icon-wrap">
+              <uni-icons type="notification-filled" :size="18" color="#7d7164"></uni-icons>
+            </view>
+            <text class="menu-text">消息通知</text>
           </view>
-          <text class="menu-arrow">></text>
+          <view class="menu-right">
+            <view v-if="unreadCount > 0" class="menu-badge">{{ formatBadge(unreadCount) }}</view>
+            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+          </view>
         </view>
+
+        <view class="menu-item" @click="go('/pages/goods/publish')">
+          <view class="menu-main">
+            <view class="menu-icon-wrap">
+              <uni-icons type="compose" :size="18" color="#7d7164"></uni-icons>
+            </view>
+            <text class="menu-text">继续发布</text>
+          </view>
+          <view class="menu-right">
+            <uni-icons type="arrow-right" :size="16" color="#b7ad9f"></uni-icons>
+          </view>
+        </view>
+      </view>
+
+      <view class="auth-card" @click="toggleLoginAction">
+        <uni-icons :type="isLoggedIn ? 'redo' : 'personadd'" :size="17" color="#8f7c67"></uni-icons>
+        <text class="auth-text">{{ loginActionText }}</text>
       </view>
     </view>
 
@@ -96,6 +131,7 @@
 import { getProfile } from '../../api/auth'
 import { getChatUnreadCount } from '../../api/chat'
 import AppTabBar from '../../components/AppTabBar.vue'
+import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import { useAuthStore } from '../../store/auth'
 import { maskPhone, maskStudentNo } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
@@ -115,7 +151,8 @@ function createEmptyProfile() {
 
 export default {
   components: {
-    AppTabBar
+    AppTabBar,
+    UniIcons
   },
   data() {
     return {
@@ -135,9 +172,6 @@ export default {
     },
     displayName() {
       return this.profile.username || this.authStore.getDisplayName()
-    },
-    profileInitial() {
-      return (this.displayName || '我').slice(0, 1)
     },
     profileSummary() {
       if (!this.isLoggedIn) {
@@ -160,6 +194,18 @@ export default {
     },
     unreadCount() {
       return this.profile.unreadMessageCount || 0
+    },
+    totalUnreadCount() {
+      return Number(this.chatUnreadCount || 0) + Number(this.unreadCount || 0)
+    },
+    unreadSummaryText() {
+      if (!this.isLoggedIn) {
+        return '登录后查看消息提醒'
+      }
+      if (this.totalUnreadCount <= 0) {
+        return '暂无未读消息'
+      }
+      return `${this.totalUnreadCount} 条未读消息`
     }
   },
   onLoad() {
@@ -221,6 +267,13 @@ export default {
     },
     go(url) {
       uni.navigateTo({ url })
+    },
+    formatBadge(value) {
+      const count = Number(value || 0)
+      if (count <= 0) {
+        return '0'
+      }
+      return count > 99 ? '99+' : `${count}`
     }
   }
 }
@@ -228,151 +281,174 @@ export default {
 
 <style scoped>
 .profile-page {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(62, 53, 44, 0.09) 0, transparent 30%),
+    radial-gradient(circle at 96% 24%, rgba(106, 78, 52, 0.08) 0, transparent 26%),
+    #f4f0ea;
   padding-bottom: 180rpx;
 }
 
 .profile-hero {
-  position: relative;
-  padding-bottom: 150rpx;
-  background: linear-gradient(135deg, #2d6a4f 0%, #1b5e20 100%);
-  overflow: hidden;
+  padding-bottom: 8rpx;
 }
 
-.hero-orb {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+.hero-card {
+  border-radius: 34rpx;
+  padding: 34rpx 30rpx 28rpx;
+  background: linear-gradient(125deg, #302c29 0%, #23201d 100%);
+  box-shadow: 0 22rpx 44rpx rgba(24, 18, 13, 0.22);
 }
 
-.hero-right {
-  width: 260rpx;
-  height: 260rpx;
-  top: 60rpx;
-  right: -50rpx;
-}
-
-.hero-left {
-  width: 320rpx;
-  height: 320rpx;
-  left: -80rpx;
-  bottom: -120rpx;
-}
-
-.profile-header {
+.hero-header {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  position: relative;
-  z-index: 1;
 }
 
-.profile-avatar {
-  width: 118rpx;
-  height: 118rpx;
+.avatar-ring {
+  width: 104rpx;
+  height: 104rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  border: 2rpx solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 46rpx;
-  font-weight: 700;
   flex-shrink: 0;
 }
 
-.profile-copy {
-  flex: 1;
+.avatar-core {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(49, 35, 74, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.profile-name {
+.hero-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-name {
   font-size: 40rpx;
   font-weight: 700;
-  color: #ffffff;
+  color: #f9f6f2;
   margin-bottom: 10rpx;
 }
 
-.profile-meta {
-  font-size: 23rpx;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.82);
-  margin-bottom: 14rpx;
+.hero-meta {
+  font-size: 24rpx;
+  line-height: 1.4;
+  color: #cec4ba;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.profile-badges {
-  display: flex;
-  gap: 10rpx;
-  flex-wrap: wrap;
-}
-
-.profile-badge {
-  min-height: 40rpx;
-  padding: 0 14rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+.hero-action {
+  width: 66rpx;
+  height: 66rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
   display: flex;
   align-items: center;
-  font-size: 20rpx;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.profile-edit {
-  width: 70rpx;
-  height: 70rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+.hero-stats {
+  margin-top: 34rpx;
+  padding-top: 6rpx;
+  display: flex;
+  align-items: center;
+}
+
+.hero-stat {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.hero-stat:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20rpx;
+  bottom: 20rpx;
+  width: 1rpx;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hero-stat-value {
+  font-size: 48rpx;
+  line-height: 1.1;
+  color: #f9f5f1;
+  font-weight: 700;
+}
+
+.hero-stat-label {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #cbbfb2;
+}
+
+.profile-shell {
+  margin-top: 20rpx;
+}
+
+.notice-card {
+  min-height: 74rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid #d8cfc4;
+  background: rgba(247, 243, 237, 0.95);
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 0 24rpx;
+  margin-bottom: 22rpx;
+}
+
+.notice-count {
+  min-width: 40rpx;
+  height: 40rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: #ab4338;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30rpx;
+  font-size: 20rpx;
   font-weight: 700;
 }
 
-.stats-grid {
-  margin-top: 28rpx;
-  padding: 22rpx 10rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.12);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  position: relative;
-  z-index: 1;
+.notice-count.muted {
+  background: #c8beb3;
 }
 
-.stat-item {
-  text-align: center;
+.notice-text {
+  font-size: 26rpx;
+  color: #5f5346;
 }
 
-.stat-num {
-  font-size: 34rpx;
-  color: #ffffff;
-  font-weight: 700;
-  margin-bottom: 8rpx;
-}
-
-.stat-label {
-  font-size: 21rpx;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.profile-shell {
-  margin-top: -96rpx;
-  position: relative;
-  z-index: 2;
-}
-
-.menu-card {
-  padding: 8rpx 24rpx;
-  margin-bottom: 18rpx;
+.menu-group {
+  border-radius: 26rpx;
+  border: 1rpx solid #d8cfc4;
+  background: rgba(247, 243, 237, 0.95);
+  overflow: hidden;
+  margin-bottom: 22rpx;
 }
 
 .menu-item {
-  min-height: 110rpx;
+  min-height: 108rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18rpx;
-  border-bottom: 1rpx solid #f0f3f5;
+  padding: 0 24rpx 0 22rpx;
+  border-bottom: 1rpx solid #ddd4ca;
 }
 
 .menu-item:last-child {
@@ -385,31 +461,77 @@ export default {
   gap: 16rpx;
 }
 
-.menu-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 18rpx;
-  background: #e8f5e9;
+.menu-icon-wrap {
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 20rpx;
+  background: #ece5db;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2d6a4f;
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.menu-icon.light {
-  background: #f8f9fa;
 }
 
 .menu-text {
-  font-size: 26rpx;
-  color: #2c3e50;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2e2923;
 }
 
-.menu-value,
-.menu-arrow {
-  font-size: 23rpx;
-  color: #6c757d;
+.menu-right {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.menu-badge {
+  min-width: 40rpx;
+  height: 40rpx;
+  padding: 0 11rpx;
+  border-radius: 999rpx;
+  background: #ab4338;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.auth-card {
+  min-height: 92rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid #d8cfc4;
+  background: rgba(247, 243, 237, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  color: #8f7c67;
+}
+
+.auth-text {
+  font-size: 31rpx;
+  font-weight: 600;
+  color: #8f7c67;
+}
+
+.profile-page :deep(.tabbar-shell) {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+@media (min-width: 900px) {
+  .profile-page {
+    max-width: 760rpx;
+    margin: 0 auto;
+  }
+
+  .hero-card {
+    border-radius: 28rpx;
+  }
+
+  .menu-text {
+    font-size: 29rpx;
+  }
 }
 </style>
