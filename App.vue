@@ -10,6 +10,8 @@ export default {
 </script>
 
 <style>
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
 :root {
   --campus-bg: #fffef9;
   --campus-bg-soft: #f8faf7;

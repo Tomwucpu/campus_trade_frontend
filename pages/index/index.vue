@@ -12,7 +12,7 @@
 
         <view class="hero-message" @click="go('/pages/user/messages')">
           <uni-icons class="hero-message-icon" type="notification" :size="20" color="#595f69"></uni-icons>
-          <text v-if="unreadCount" class="hero-message-dot"></text>
+          <text v-if="unreadCountValue" class="hero-message-dot"></text>
         </view>
       </view>
 
@@ -57,7 +57,7 @@
             @click="openCategory(item)"
           >
             <view class="primary-category-icon">
-              <uni-icons :type="item.iconType" :size="23" color="#8f949d"></uni-icons>
+              <text class="primary-category-glyph">{{ item.iconGlyph }}</text>
             </view>
             <text class="primary-category-label">{{ item.shortName || item.name }}</text>
           </view>
@@ -158,6 +158,44 @@ import {
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
+const GOODS_LIST_PAGE_URL = '/pages/goods/list'
+const HOME_FEED_QUERY = Object.freeze({
+  pageNum: 1,
+  pageSize: 20
+})
+const HOME_RECOMMEND_LIMIT = 3
+const HOME_LATEST_LIMIT = 6
+
+function resolveGoodsRecords(response) {
+  if (!response || response.code !== 0) {
+    return []
+  }
+
+  const data = response.data || {}
+  return Array.isArray(data.records) ? data.records : []
+}
+
+function resolveUnreadCountValue(response) {
+  if (!response || response.code !== 0) {
+    return 0
+  }
+
+  return Number(response.data || 0)
+}
+
+function buildHomeGoods(goodsList = []) {
+  return sortGoodsList(goodsList.map((item, index) => normalizeGoodsItem(item, index)), 'latest')
+}
+
+function pickRecommendGoods(list = [], offset = 0, limit = HOME_RECOMMEND_LIMIT) {
+  if (!list.length) {
+    return []
+  }
+
+  const startIndex = offset % list.length
+  return [...list.slice(startIndex), ...list.slice(0, startIndex)].slice(0, limit)
+}
+
 export default {
   components: {
     UniIcons,
@@ -173,10 +211,10 @@ export default {
       goodsStore: useGoodsStore(),
       searchKeyword: '',
       categories: [
-        { id: 'all', value: 'all', name: '全部', shortName: '全部', iconType: 'shop' },
-        { id: 1, value: 1, name: '数码电子', shortName: '数码', iconType: 'gear' },
-        { id: 2, value: 2, name: '教材书籍', shortName: '书籍', iconType: 'compose' },
-        { id: 6, value: 6, name: '其他', shortName: '其他', iconType: 'more-filled' }
+        { id: 'all', value: 'all', name: '全部', shortName: '全部', iconGlyph: '\uF3F5' },
+        { id: 1, value: 1, name: '数码电子', shortName: '数码', iconGlyph: '\uF220' },
+        { id: 2, value: 2, name: '教材书籍', shortName: '书籍', iconGlyph: '\uF194' },
+        { id: 6, value: 6, name: '其他', shortName: '其他', iconGlyph: '\uF685' }
       ],
       goodsList: [],
       recommendOffset: 0,
@@ -184,25 +222,17 @@ export default {
     }
   },
   computed: {
-    unreadCount() {
-      return this.unreadCountValue
-    },
-    normalizedGoods() {
-      return sortGoodsList(this.goodsList.map((item, index) => normalizeGoodsItem(item, index)), 'latest')
+    homeGoods() {
+      return buildHomeGoods(this.goodsList)
     },
     recommendGoods() {
-      const list = this.normalizedGoods.slice(0)
-      if (!list.length) {
-        return []
-      }
-      const offset = this.recommendOffset % list.length
-      return [...list.slice(offset), ...list.slice(0, offset)].slice(0, 3)
+      return pickRecommendGoods(this.homeGoods, this.recommendOffset)
     },
     latestGoods() {
-      return this.normalizedGoods.slice(0, 6)
+      return this.homeGoods.slice(0, HOME_LATEST_LIMIT)
     },
     homeGoodsCount() {
-      return this.normalizedGoods.length || 0
+      return this.homeGoods.length
     }
   },
   onLoad() {
@@ -215,38 +245,28 @@ export default {
   methods: {
     syncPageState() {
       syncThemePage(this)
-      const store = this.goodsStore.sync()
-      this.searchKeyword = store.keyword
+      this.searchKeyword = this.goodsStore.sync().keyword
       if (!this.authStore.sync().isLoggedIn()) {
         this.unreadCountValue = 0
         return
       }
       this.fetchUnreadCount()
     },
-    fetchHomeFeed() {
-      getGoodsList({
-        pageNum: 1,
-        pageSize: 20
-      })
-        .then((res) => {
-          if (res && res.code === 0) {
-            this.goodsList = (res.data && res.data.records) || []
-            return
-          }
-          this.goodsList = []
-        })
-        .catch(() => {
-          this.goodsList = []
-        })
+    async fetchHomeFeed() {
+      try {
+        const response = await getGoodsList(HOME_FEED_QUERY)
+        this.goodsList = resolveGoodsRecords(response)
+      } catch (error) {
+        this.goodsList = []
+      }
     },
-    fetchUnreadCount() {
-      getUnreadMessageCount()
-        .then((res) => {
-          this.unreadCountValue = res && res.code === 0 ? Number(res.data || 0) : 0
-        })
-        .catch(() => {
-          this.unreadCountValue = 0
-        })
+    async fetchUnreadCount() {
+      try {
+        const response = await getUnreadMessageCount()
+        this.unreadCountValue = resolveUnreadCountValue(response)
+      } catch (error) {
+        this.unreadCountValue = 0
+      }
     },
     handleFavoriteChange(payload) {
       if (!payload || !payload.id) {
@@ -260,7 +280,7 @@ export default {
     openCategory(item) {
       this.goodsStore.setCategoryId(item.value || item.id || 'all')
       this.goodsStore.setKeyword('')
-      uni.navigateTo({ url: '/pages/goods/list' })
+      this.go(GOODS_LIST_PAGE_URL)
     },
     openDetail(id) {
       this.goodsStore.setLastViewedId(id)
@@ -268,7 +288,7 @@ export default {
     },
     goSearch() {
       this.goodsStore.setKeyword(this.searchKeyword)
-      uni.navigateTo({ url: '/pages/goods/list' })
+      this.go(GOODS_LIST_PAGE_URL)
     },
     go(url) {
       uni.navigateTo({ url })
@@ -518,6 +538,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.primary-category-glyph {
+  font-family: "bootstrap-icons";
+  font-size: 20px;
+  line-height: 1;
+  color: #8f949d;
 }
 
 .primary-category-label {

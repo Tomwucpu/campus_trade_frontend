@@ -4,6 +4,7 @@
   "private": true,
   "description": "校园二手交易平台前端（uni-app + Vue3）",
   "dependencies": {
-    "@dcloudio/uni-ui": "^1.5.12"
+    "@dcloudio/uni-ui": "^1.5.12",
+    "bootstrap-icons": "^1.13.1"
   }
 }

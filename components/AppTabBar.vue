@@ -10,21 +10,12 @@
           @click="go(item)"
         >
           <view class="tabbar-icon-wrap">
-            <view class="tabbar-icon">
-              <view v-if="item.key === 'home'" class="icon-home">
-                <view class="icon-home-roof"></view>
-                <view class="icon-home-body"></view>
-                <view class="icon-home-door"></view>
-              </view>
-
-              <view v-else-if="item.key === 'orders'" class="icon-orders">
-                <view class="icon-orders-sheet"></view>
-                <view class="icon-orders-tab"></view>
-                <view class="icon-orders-line line-one"></view>
-                <view class="icon-orders-line line-two"></view>
-                <view class="icon-orders-line line-three"></view>
-              </view>
-            </view>
+            <uni-icons
+              class="tabbar-icon"
+              :type="resolveIcon(item)"
+              :size="22"
+              :color="resolveIconColor(item)"
+            ></uni-icons>
           </view>
           <text class="tabbar-label">{{ item.label }}</text>
         </view>
@@ -41,20 +32,12 @@
           @click="go(item)"
         >
           <view class="tabbar-icon-wrap">
-            <view class="tabbar-icon">
-              <view v-if="item.key === 'chat'" class="icon-chat">
-                <view class="icon-chat-bubble"></view>
-                <view class="icon-chat-tail"></view>
-                <view class="icon-chat-line line-one"></view>
-                <view class="icon-chat-line line-two"></view>
-              </view>
-
-              <view v-else-if="item.key === 'profile'" class="icon-profile">
-                <view class="icon-profile-head"></view>
-                <view class="icon-profile-body"></view>
-              </view>
-            </view>
-
+            <uni-icons
+              class="tabbar-icon"
+              :type="resolveIcon(item)"
+              :size="22"
+              :color="resolveIconColor(item)"
+            ></uni-icons>
             <view v-if="showBadge(item)" class="tabbar-badge">{{ formatBadge(totalUnreadCount) }}</view>
           </view>
           <text class="tabbar-label">{{ item.label }}</text>
@@ -70,11 +53,15 @@
 </template>
 
 <script>
+import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import { getChatUnreadCount } from '../api/chat'
 import { getUnreadMessageCount } from '../api/message'
 import { useAuthStore } from '../store/auth'
 
 export default {
+  components: {
+    UniIcons
+  },
   props: {
     active: {
       type: String,
@@ -122,6 +109,19 @@ export default {
   methods: {
     isActive(item) {
       return this.active === item.key
+    },
+    resolveIcon(item) {
+      const iconMap = {
+        home: { default: 'home', active: 'home-filled' },
+        orders: { default: 'wallet', active: 'wallet-filled' },
+        chat: { default: 'chatboxes', active: 'chatboxes-filled' },
+        profile: { default: 'person', active: 'person-filled' }
+      }
+      const matched = iconMap[item && item.key] || { default: 'circle', active: 'circle-filled' }
+      return this.isActive(item) ? matched.active : matched.default
+    },
+    resolveIconColor(item) {
+      return this.isActive(item) ? '#131517' : '#a6afb8'
     },
     showBadge(item) {
       return item.key === 'chat' && this.totalUnreadCount > 0
@@ -237,10 +237,7 @@ export default {
 }
 
 .tabbar-icon {
-  position: relative;
-  width: 40rpx;
-  height: 36rpx;
-  color: currentColor;
+  line-height: 1;
 }
 
 .tabbar-label {
@@ -301,160 +298,5 @@ export default {
 
 .plus-vertical {
   transform: rotate(90deg);
-}
-
-.icon-home,
-.icon-orders,
-.icon-chat,
-.icon-profile {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.icon-home-roof {
-  position: absolute;
-  top: 2rpx;
-  left: 10rpx;
-  width: 20rpx;
-  height: 20rpx;
-  border-top: 3rpx solid currentColor;
-  border-left: 3rpx solid currentColor;
-  border-top-left-radius: 6rpx;
-  transform: rotate(45deg);
-  background: #ffffff;
-}
-
-.icon-home-body {
-  position: absolute;
-  left: 10rpx;
-  bottom: 2rpx;
-  width: 20rpx;
-  height: 16rpx;
-  border: 3rpx solid currentColor;
-  border-top: none;
-  border-radius: 0 0 8rpx 8rpx;
-  background: #ffffff;
-}
-
-.icon-home-door {
-  position: absolute;
-  left: 17rpx;
-  bottom: 2rpx;
-  width: 6rpx;
-  height: 10rpx;
-  border: 3rpx solid currentColor;
-  border-bottom: none;
-  border-radius: 4rpx 4rpx 0 0;
-  background: #ffffff;
-}
-
-.icon-orders-sheet {
-  position: absolute;
-  top: 4rpx;
-  left: 8rpx;
-  width: 24rpx;
-  height: 26rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 10rpx;
-  background: #ffffff;
-}
-
-.icon-orders-tab {
-  position: absolute;
-  top: 0;
-  left: 15rpx;
-  width: 10rpx;
-  height: 8rpx;
-  border-radius: 0 0 6rpx 6rpx;
-  background: currentColor;
-}
-
-.icon-orders-line {
-  position: absolute;
-  left: 14rpx;
-  height: 3rpx;
-  border-radius: 999rpx;
-  background: currentColor;
-}
-
-.icon-orders-line.line-one {
-  top: 13rpx;
-  width: 12rpx;
-}
-
-.icon-orders-line.line-two {
-  top: 19rpx;
-  width: 12rpx;
-}
-
-.icon-orders-line.line-three {
-  top: 25rpx;
-  width: 8rpx;
-}
-
-.icon-chat-bubble {
-  position: absolute;
-  top: 4rpx;
-  left: 4rpx;
-  width: 30rpx;
-  height: 22rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 12rpx;
-  background: #ffffff;
-}
-
-.icon-chat-tail {
-  position: absolute;
-  left: 12rpx;
-  bottom: 2rpx;
-  width: 10rpx;
-  height: 10rpx;
-  border-left: 3rpx solid currentColor;
-  border-bottom: 3rpx solid currentColor;
-  border-bottom-left-radius: 7rpx;
-  background: #ffffff;
-  transform: skewX(-18deg);
-}
-
-.icon-chat-line {
-  position: absolute;
-  left: 11rpx;
-  height: 3rpx;
-  border-radius: 999rpx;
-  background: currentColor;
-}
-
-.icon-chat-line.line-one {
-  top: 13rpx;
-  width: 16rpx;
-}
-
-.icon-chat-line.line-two {
-  top: 19rpx;
-  width: 12rpx;
-}
-
-.icon-profile-head {
-  position: absolute;
-  top: 4rpx;
-  left: 12rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border: 3rpx solid currentColor;
-  border-radius: 50%;
-  background: #ffffff;
-}
-
-.icon-profile-body {
-  position: absolute;
-  left: 7rpx;
-  bottom: 4rpx;
-  width: 22rpx;
-  height: 12rpx;
-  border: 3rpx solid currentColor;
-  border-top: none;
-  border-radius: 0 0 14rpx 14rpx;
-  background: #ffffff;
 }
 </style>
