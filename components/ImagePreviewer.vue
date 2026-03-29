@@ -4,7 +4,9 @@
 
     <view class="image-previewer-top" @click.stop>
       <view class="image-previewer-count">{{ displayIndex }} / {{ normalizedImages.length }}</view>
-      <view class="image-previewer-close" @click="requestClose">X</view>
+      <view class="image-previewer-close" @click="requestClose">
+        <text class="image-previewer-close-icon bi">&#xF659;</text>
+      </view>
     </view>
 
     <view class="image-previewer-body">
@@ -207,8 +209,14 @@ export default {
 
 .image-previewer-close {
   min-width: 64rpx;
-  font-size: 26rpx;
-  font-weight: 700;
+  padding: 0;
+}
+
+.image-previewer-close-icon {
+  font-family: "bootstrap-icons";
+  font-size: 30rpx;
+  line-height: 1;
+  color: #ffffff;
 }
 
 .image-previewer-body {

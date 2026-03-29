@@ -1,5 +1,19 @@
 <template>
   <view class="market-page detail-page" :class="themeClass">
+    <view class="detail-floating safe-top">
+      <view class="market-shell">
+        <view class="market-topbar">
+          <view class="market-back-btn floating-btn" @click="goBack">
+            <uni-icons type="back" :size="20" color="#595f69"></uni-icons>
+          </view>
+          <view class="market-page-title floating-title">商品详情</view>
+          <view class="market-icon-btn floating-btn" @click="shareDetail">
+            <uni-icons type="redo" :size="18" color="#595f69"></uni-icons>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <template v-if="hasDetail">
       <view v-if="hasGallery" class="detail-cover">
         <swiper class="cover-swiper" circular @change="onSwiperChange">
@@ -8,17 +22,6 @@
           </swiper-item>
         </swiper>
 
-        <view class="cover-top safe-top">
-          <view class="market-shell">
-            <view class="market-topbar">
-              <view class="market-back-btn transparent" @click="goBack">
-                <text class="market-back-symbol">&lt;</text>
-              </view>
-              <view class="market-icon-btn transparent">...</view>
-            </view>
-          </view>
-        </view>
-
         <view class="cover-dots">
           <view
             v-for="(image, index) in detail.gallery"
@@ -26,16 +29,6 @@
             class="cover-dot"
             :class="{ active: currentImageIndex === index }"
           ></view>
-        </view>
-      </view>
-
-      <view v-else class="market-shell safe-top">
-        <view class="market-topbar">
-          <view class="market-back-btn" @click="goBack">
-            <text class="market-back-symbol">&lt;</text>
-          </view>
-          <view class="market-page-title">商品详情</view>
-          <view class="market-icon-btn placeholder-btn"></view>
         </view>
       </view>
 
@@ -82,11 +75,15 @@
       <view class="buy-bar market-card">
         <view class="buy-tools">
           <view class="tool-item" @click="toggleFavorite">
-            <text class="tool-icon">{{ favorite ? '已' : '藏' }}</text>
+            <view class="tool-icon">
+              <uni-icons :type="favorite ? 'heart-filled' : 'heart'" :size="22" :color="favorite ? '#c0554f' : '#5d646d'"></uni-icons>
+            </view>
             <text class="tool-label">收藏</text>
           </view>
           <view class="tool-item" @click="openSellerChatSafe">
-            <text class="tool-icon">聊</text>
+            <view class="tool-icon">
+              <uni-icons type="chatboxes" :size="22" color="#5d646d"></uni-icons>
+            </view>
             <text class="tool-label">联系</text>
           </view>
         </view>
@@ -97,16 +94,6 @@
     </template>
 
     <template v-else>
-      <view class="market-shell safe-top">
-        <view class="market-topbar">
-          <view class="market-back-btn" @click="goBack">
-            <text class="market-back-symbol">&lt;</text>
-          </view>
-          <view class="market-page-title">商品详情</view>
-          <view class="market-icon-btn placeholder-btn"></view>
-        </view>
-      </view>
-
       <view class="market-shell detail-empty-shell">
         <view class="market-card detail-empty-card">
           <EmptyState
@@ -132,6 +119,7 @@ import { openConversationByGoods } from '../../api/chat'
 import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
+import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { useAuthStore } from '../../store/auth'
@@ -142,6 +130,7 @@ import { syncThemePage } from '../../utils/theme'
 
 export default {
   components: {
+    UniIcons,
     EmptyState,
     ImagePreviewer
   },
@@ -374,6 +363,22 @@ export default {
           uni.showToast({ title: '下单失败', icon: 'none' })
         })
     },
+    shareDetail() {
+      if (!this.id) {
+        uni.showToast({ title: '暂无可分享内容', icon: 'none' })
+        return
+      }
+      const sharePath = `/pages/goods/detail?id=${this.id}`
+      uni.setClipboardData({
+        data: sharePath,
+        success: () => {
+          uni.showToast({ title: '链接已复制', icon: 'none' })
+        },
+        fail: () => {
+          uni.showToast({ title: '暂不支持分享', icon: 'none' })
+        }
+      })
+    },
     goBack() {
       if (this.previewVisible) {
         this.closePreview()
@@ -397,29 +402,45 @@ export default {
 <style scoped>
 .detail-page {
   padding-bottom: 180rpx;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.92) 0, rgba(255, 255, 255, 0) 32%),
+    linear-gradient(180deg, #edeff1 0%, #f8f7f3 260rpx, #fcfbf7 100%);
 }
 
-.placeholder-btn {
-  visibility: hidden;
+.detail-floating {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 32;
+}
+
+.detail-floating .market-shell {
+  padding-bottom: 0;
+}
+
+.floating-btn {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(214, 217, 222, 0.9);
+  color: #595f69;
+  box-shadow: 0 18rpx 36rpx rgba(25, 31, 38, 0.08);
+}
+
+.floating-title {
+  color: #30343a;
+  letter-spacing: 2rpx;
 }
 
 .detail-cover {
   position: relative;
   height: 720rpx;
-  background: #f8f9fa;
+  background: linear-gradient(135deg, #efefee 0%, #d8d9dc 100%);
 }
 
 .cover-swiper,
 .cover-image {
   width: 100%;
   height: 100%;
-}
-
-.cover-top {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
 }
 
 .cover-dots {
@@ -452,22 +473,30 @@ export default {
 }
 
 .detail-shell.without-cover {
-  margin-top: 24rpx;
+  margin-top: calc(var(--status-bar-height) + 118rpx);
 }
 
 .detail-empty-shell {
-  padding-top: 24rpx;
+  padding-top: calc(var(--status-bar-height) + 118rpx);
 }
 
 .detail-empty-card {
   padding: 12rpx;
+  overflow: hidden;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(235, 237, 240, 0.9);
+  box-shadow: 0 18rpx 34rpx rgba(31, 35, 41, 0.05);
 }
 
 .info-card,
 .seller-card,
 .content-card {
-  padding: 24rpx;
+  padding: 28rpx;
   margin-bottom: 20rpx;
+  background: rgba(248, 248, 246, 0.96);
+  border: 1rpx solid rgba(235, 237, 240, 0.92);
+  box-shadow: 0 18rpx 34rpx rgba(31, 35, 41, 0.06);
 }
 
 .price-row {
@@ -487,26 +516,28 @@ export default {
 
 .detail-price {
   font-size: 50rpx;
+  color: #c0554f;
+  font-weight: 600;
 }
 
 .detail-origin {
   font-size: 22rpx;
-  color: #adb5bd;
+  color: #afb4bc;
   text-decoration: line-through;
 }
 
 .detail-stats {
   font-size: 22rpx;
   line-height: 1.7;
-  color: #6c757d;
+  color: #8e949d;
   text-align: right;
 }
 
 .detail-title {
   font-size: 36rpx;
   line-height: 1.45;
-  color: #2c3e50;
-  font-weight: 700;
+  color: #3a3f46;
+  font-weight: 600;
   margin-bottom: 16rpx;
 }
 
@@ -518,9 +549,10 @@ export default {
 
 .meta-item {
   padding: 10rpx 16rpx;
-  border-radius: 14rpx;
-  background: #f8f9fa;
-  color: #6c757d;
+  border-radius: 999rpx;
+  background: rgba(242, 243, 245, 0.96);
+  border: 1rpx solid rgba(226, 228, 231, 0.8);
+  color: #646a74;
   font-size: 22rpx;
 }
 
@@ -542,13 +574,14 @@ export default {
   width: 90rpx;
   height: 90rpx;
   border-radius: 50%;
-  background: #e8f5e9;
+  background: linear-gradient(135deg, #efefee 0%, #dfe1e4 100%);
+  border: 1rpx solid rgba(226, 229, 233, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2d6a4f;
+  color: #5d646d;
   font-size: 34rpx;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .seller-copy {
@@ -564,39 +597,41 @@ export default {
 
 .seller-name {
   font-size: 28rpx;
-  font-weight: 700;
-  color: #2c3e50;
+  font-weight: 600;
+  color: #3a3f46;
 }
 
 .seller-rating {
   font-size: 22rpx;
-  color: #f77f00;
+  color: #c0554f;
 }
 
 .seller-subtitle {
   font-size: 22rpx;
   line-height: 1.7;
-  color: #6c757d;
+  color: #8a8f98;
 }
 
 .seller-action {
   min-width: 140rpx;
   min-height: 62rpx;
   padding: 0 18rpx;
-  border-radius: 16rpx;
-  background: #e8f5e9;
-  color: #2d6a4f;
+  border-radius: 999rpx;
+  background: rgba(35, 35, 35, 0.96);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 22rpx;
+  font-weight: 600;
+  box-shadow: 0 14rpx 28rpx rgba(35, 35, 35, 0.12);
 }
 
 .content-text {
   margin-top: 18rpx;
   font-size: 25rpx;
   line-height: 1.9;
-  color: #6c757d;
+  color: #5d646d;
 }
 
 .buy-bar {
@@ -609,11 +644,14 @@ export default {
   align-items: center;
   gap: 18rpx;
   z-index: 18;
+  background: rgba(252, 251, 247, 0.96);
+  border: 1rpx solid rgba(235, 237, 240, 0.92);
+  box-shadow: 0 20rpx 40rpx rgba(31, 35, 41, 0.08);
 }
 
 .buy-tools {
   display: flex;
-  gap: 12rpx;
+  gap: 14rpx;
 }
 
 .tool-item {
@@ -628,20 +666,40 @@ export default {
   width: 56rpx;
   height: 56rpx;
   border-radius: 18rpx;
-  background: #f8f9fa;
+  background: rgba(242, 243, 245, 0.96);
+  box-shadow: inset 0 0 0 1rpx rgba(226, 228, 231, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #2d6a4f;
+  color: #5d646d;
 }
 
 .tool-label {
   font-size: 20rpx;
-  color: #6c757d;
+  color: #8a8f98;
 }
 
 .buy-btn {
   flex: 1;
+  background: #232323;
+  color: #ffffff;
+  box-shadow: 0 16rpx 30rpx rgba(35, 35, 35, 0.16);
+}
+
+.buy-btn[disabled] {
+  background: #bcc1c8;
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow: none;
+}
+
+.detail-page :deep(.market-tag) {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1rpx solid rgba(215, 110, 98, 0.2);
+  color: #c0554f;
+}
+
+.detail-page :deep(.market-section-title) {
+  color: #2f3339;
 }
 </style>
