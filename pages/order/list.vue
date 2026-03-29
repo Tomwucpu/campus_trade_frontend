@@ -395,9 +395,7 @@ export default {
 .order-page {
   min-height: 100vh;
   padding-bottom: 190rpx;
-  background:
-    radial-gradient(circle at 8% -8%, rgba(255, 255, 255, 0.82) 0, rgba(255, 255, 255, 0) 34%),
-    #ece8de;
+  background: var(--campus-page-bg);
 }
 
 .icon-font {
@@ -411,9 +409,9 @@ export default {
   position: sticky;
   top: 0;
   z-index: 24;
-  background: rgba(236, 232, 222, 0.96);
+  background: rgba(248, 247, 243, 0.96);
   backdrop-filter: blur(8px);
-  border-bottom: 1rpx solid #d7d0c2;
+  border-bottom: 1rpx solid #e0e2e5;
 }
 
 .header-shell {
@@ -782,7 +780,7 @@ export default {
 }
 
 .order-page :deep(.tabbar-shell) {
-  background: rgba(248, 245, 238, 0.96);
+  background: rgba(255, 255, 255, 0.94);
 }
 
 @keyframes listSlideFromRight {

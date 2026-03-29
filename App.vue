@@ -13,26 +13,29 @@ export default {
 @import "bootstrap-icons/font/bootstrap-icons.css";
 
 :root {
-  --campus-bg: #fffef9;
-  --campus-bg-soft: #f8faf7;
-  --campus-surface: #ffffff;
-  --campus-surface-muted: #f8f9fa;
-  --campus-surface-soft: #f0f3f5;
-  --campus-text: #2c3e50;
-  --campus-text-muted: #6c757d;
-  --campus-text-light: #adb5bd;
-  --campus-primary: #2d6a4f;
-  --campus-primary-strong: #1b5e20;
-  --campus-primary-soft: #e8f5e9;
-  --campus-orange: #f77f00;
-  --campus-orange-soft: #fff3e0;
-  --campus-border: #e9ecef;
-  --campus-danger: #dc3545;
-  --campus-danger-soft: #ffebee;
-  --campus-info: #1565c0;
-  --campus-info-soft: #e3f2fd;
-  --campus-shadow: 0 18rpx 52rpx rgba(25, 53, 79, 0.08);
-  --campus-shadow-soft: 0 10rpx 24rpx rgba(25, 53, 79, 0.06);
+  --campus-bg: #fcfbf7;
+  --campus-page-bg:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.92) 0, rgba(255, 255, 255, 0) 34%),
+    linear-gradient(180deg, #edeff1 0%, #f8f7f3 260rpx, var(--campus-bg) 100%);
+  --campus-bg-soft: #f5f2eb;
+  --campus-surface: #f7f3ed;
+  --campus-surface-muted: #f3efe6;
+  --campus-surface-soft: #ece7dd;
+  --campus-text: #2f2922;
+  --campus-text-muted: #8a8174;
+  --campus-text-light: #b3ab9f;
+  --campus-primary: #27231e;
+  --campus-primary-strong: #1f1a15;
+  --campus-primary-soft: #ece7dd;
+  --campus-orange: #b13d28;
+  --campus-orange-soft: #f8ece8;
+  --campus-border: #d8d1c4;
+  --campus-danger: #ab4338;
+  --campus-danger-soft: #f6e4df;
+  --campus-info: #8f7c67;
+  --campus-info-soft: #f3ede3;
+  --campus-shadow: 0 18rpx 36rpx rgba(45, 39, 31, 0.08);
+  --campus-shadow-soft: 0 12rpx 24rpx rgba(45, 39, 31, 0.06);
   --campus-radius-xl: 28rpx;
   --campus-radius-lg: 24rpx;
   --campus-radius-md: 20rpx;
@@ -78,10 +81,7 @@ button::after {
 .market-page {
   min-height: 100vh;
   color: var(--campus-text);
-  background:
-    radial-gradient(circle at top left, rgba(45, 106, 79, 0.16) 0, transparent 28%),
-    radial-gradient(circle at top right, rgba(247, 127, 0, 0.09) 0, transparent 26%),
-    linear-gradient(180deg, #f8faf7 0%, var(--campus-bg) 260rpx);
+  background: var(--campus-page-bg);
   position: relative;
   overflow-x: hidden;
   padding-bottom: calc(34rpx + env(safe-area-inset-bottom));
@@ -96,14 +96,15 @@ button::after {
 }
 
 .market-card {
-  background: var(--campus-surface);
-  border: 1rpx solid rgba(233, 236, 239, 0.9);
+  background: rgba(247, 243, 237, 0.95);
+  border: 1rpx solid rgba(216, 209, 196, 0.9);
   border-radius: var(--campus-radius-xl);
   box-shadow: var(--campus-shadow);
 }
 
 .market-card.soft {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(228, 223, 214, 0.85);
 }
 
 .market-row-head {
@@ -116,7 +117,7 @@ button::after {
 
 .market-section-title {
   font-size: 34rpx;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--campus-text);
 }
 
@@ -133,15 +134,16 @@ button::after {
   min-height: 60rpx;
   padding: 0 24rpx;
   border-radius: 999rpx;
-  background: var(--campus-surface-muted);
+  background: rgba(243, 239, 230, 0.92);
   color: var(--campus-text-muted);
   font-size: 22rpx;
-  border: 1rpx solid transparent;
+  border: 1rpx solid rgba(216, 209, 196, 0.82);
 }
 
 .market-pill.active {
   background: var(--campus-primary);
   color: #ffffff;
+  border-color: var(--campus-primary);
 }
 
 .market-tag {
@@ -155,6 +157,7 @@ button::after {
   color: var(--campus-primary-strong);
   font-size: 22rpx;
   font-weight: 600;
+  border: 1rpx solid rgba(206, 199, 188, 0.76);
 }
 
 .market-tag.warning {
@@ -175,7 +178,7 @@ button::after {
 .market-input,
 .market-textarea {
   width: 100%;
-  border: 2rpx solid transparent;
+  border: 1rpx solid rgba(216, 209, 196, 0.88);
   border-radius: var(--campus-radius-md);
   background: var(--campus-surface-muted);
   color: var(--campus-text);
@@ -196,29 +199,30 @@ button::after {
 .market-ghost-btn {
   margin: 0;
   border-radius: 999rpx;
-  font-size: 28rpx;
-  font-weight: 600;
+  font-size: 26rpx;
+  font-weight: 500;
   padding: 0 34rpx;
-  height: 84rpx;
-  line-height: 84rpx;
+  height: 82rpx;
+  line-height: 82rpx;
 }
 
 .market-primary-btn {
-  background: linear-gradient(135deg, var(--campus-primary) 0%, var(--campus-primary-strong) 100%);
+  background: var(--campus-primary);
   color: #ffffff;
-  box-shadow: 0 16rpx 30rpx rgba(45, 106, 79, 0.18);
+  border: 1rpx solid var(--campus-primary-strong);
+  box-shadow: 0 10rpx 20rpx rgba(39, 35, 30, 0.2);
 }
 
 .market-secondary-btn {
-  background: #ffffff;
-  color: var(--campus-text);
-  border: 1rpx solid var(--campus-border);
+  background: rgba(247, 243, 235, 0.9);
+  color: #6b6459;
+  border: 1rpx solid #ccc4b8;
 }
 
 .market-ghost-btn {
   background: transparent;
-  color: var(--campus-text-muted);
-  border: 1rpx solid var(--campus-border);
+  color: #8f8679;
+  border: 1rpx solid rgba(204, 196, 184, 0.9);
 }
 
 .market-topbar {
@@ -233,7 +237,8 @@ button::after {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1rpx solid rgba(226, 221, 212, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,7 +248,8 @@ button::after {
 
 .market-back-btn.transparent,
 .market-icon-btn.transparent {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
@@ -254,7 +260,7 @@ button::after {
 
 .market-page-title {
   font-size: 34rpx;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--campus-text);
 }
 
@@ -273,6 +279,15 @@ button::after {
   text-align: center;
   color: var(--campus-text-muted);
   font-size: 24rpx;
-  line-height: 1.8;
+  line-height: 1.7;
+}
+
+.icon-font {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-style: normal;
+  font-family: "bootstrap-icons";
 }
 </style>

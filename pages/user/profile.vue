@@ -281,9 +281,7 @@ export default {
 
 <style scoped>
 .profile-page {
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.92) 0, rgba(255, 255, 255, 0) 32%),
-    linear-gradient(180deg, #edeff1 0%, #f8f7f3 260rpx, #fcfbf7 100%);
+  background: var(--campus-page-bg);
   padding-bottom: 180rpx;
 }
 
