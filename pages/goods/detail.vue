@@ -8,7 +8,7 @@
           </view>
           <view class="market-page-title floating-title">商品详情</view>
           <view class="market-icon-btn floating-btn" @click="shareDetail">
-            <uni-icons type="redo" :size="18" color="#595f69"></uni-icons>
+            <i class="bi bi-share"></i>
           </view>
         </view>
       </view>
@@ -75,8 +75,8 @@
       <view class="buy-bar market-card">
         <view class="buy-tools">
           <view class="tool-item" @click="toggleFavorite">
-            <view class="tool-icon">
-              <uni-icons :type="favorite ? 'heart-filled' : 'heart'" :size="22" :color="favorite ? '#c0554f' : '#5d646d'"></uni-icons>
+            <view class="tool-icon" :class="{ 'is-active': favorite }">
+              <i :class="favorite ? 'bi bi-star-fill' : 'bi bi-star'"></i>
             </view>
             <text class="tool-label">收藏</text>
           </view>
@@ -426,6 +426,14 @@ export default {
   box-shadow: 0 18rpx 36rpx rgba(25, 31, 38, 0.08);
 }
 
+.market-icon-btn .bi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 34rpx;
+}
+
 .floating-title {
   color: #30343a;
   letter-spacing: 2rpx;
@@ -673,6 +681,18 @@ export default {
   justify-content: center;
   font-size: 28rpx;
   color: #5d646d;
+}
+
+.tool-icon .bi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 28rpx;
+}
+
+.tool-icon.is-active {
+  color: #f0b400;
 }
 
 .tool-label {

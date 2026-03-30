@@ -109,7 +109,6 @@
           :key="item.id"
           :goods="item"
           @click="openDetail(item.id)"
-          @favorite-change="handleFavoriteChange"
         />
       </view>
     </view>
@@ -125,8 +124,7 @@ import {
   filterGoodsList,
   getConditionOptions,
   getDefaultCategoryList,
-  normalizeGoodsItem,
-  patchGoodsFavoriteState
+  normalizeGoodsItem
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
@@ -265,12 +263,6 @@ export default {
       }
       this.keyword = ''
       this.fetchList()
-    },
-    handleFavoriteChange(payload) {
-      if (!payload || !payload.id) {
-        return
-      }
-      this.list = patchGoodsFavoriteState(this.list, payload.id, payload.value)
     },
     openDetail(id) {
       this.goodsStore.setLastViewedId(id)

@@ -32,7 +32,7 @@
           class="goods-item"
           :style="getItemStyle(index)"
         >
-          <ProductCard :goods="item" @click="openDetail(item.id)" @favorite-change="refreshList" />
+          <ProductCard :goods="item" @click="openDetail(item.id)" />
         </view>
       </view>
     </view>
@@ -188,14 +188,6 @@ export default {
           this.favoriteTotal = 0
           this.triggerListEntry()
         })
-    },
-    refreshList(payload) {
-      if (payload && payload.value === false) {
-        this.list = this.list.filter((item) => String(item.id) !== String(payload.id))
-        this.favoriteTotal = Math.max(0, this.favoriteTotal - 1)
-        return
-      }
-      this.fetchList()
     },
     openDetail(id) {
       uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })

@@ -86,7 +86,7 @@
               :key="`recommend-${item.id}`"
               class="recommend-item"
             >
-              <ProductCard :goods="item" @click="openDetail(item.id)" @favorite-change="handleFavoriteChange" />
+              <ProductCard :goods="item" @click="openDetail(item.id)" />
             </view>
           </view>
         </scroll-view>
@@ -122,7 +122,6 @@
             :key="item.id"
             :goods="item"
             @click="openDetail(item.id)"
-            @favorite-change="handleFavoriteChange"
           />
         </view>
 
@@ -152,7 +151,6 @@ import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
   normalizeGoodsItem,
-  patchGoodsFavoriteState,
   sortGoodsList
 } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
@@ -266,12 +264,6 @@ export default {
       } catch (error) {
         this.unreadCountValue = 0
       }
-    },
-    handleFavoriteChange(payload) {
-      if (!payload || !payload.id) {
-        return
-      }
-      this.goodsList = patchGoodsFavoriteState(this.goodsList, payload.id, payload.value)
     },
     shuffleRecommend() {
       this.recommendOffset += 1

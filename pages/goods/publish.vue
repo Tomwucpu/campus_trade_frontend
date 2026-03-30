@@ -43,7 +43,7 @@
             @click="handleAiEntry"
           >
             <text class="ai-entry-label">{{ aiEntryText }}</text>
-            <text class="ai-entry-arrow" :class="{ open: aiPanelVisible }">⌄</text>
+            <text class="ai-entry-arrow icon-font bi bi-chevron-down" :class="{ open: aiPanelVisible }"></text>
           </button>
         </view>
 
@@ -125,7 +125,7 @@
               </view>
 
               <view class="ai-note">
-                价格会受到学校区域、附件完整度和图片清晰度影响，请在发布前再手动确认一次。
+                价格会图片清晰度影响，请在发布前再手动确认一次。
               </view>
 
               <view class="ai-actions">
@@ -380,7 +380,7 @@ export default {
       }
       return this.isEdit
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
-        : '提交后商品会立即进入列表展示，图片会自动压缩并转换为更适合展示的格式。'
+        : '发布后会立即进入列表展示，图片会自动压缩并转换为更适合展示的格式。'
     },
     aiEntryText() {
       if (!this.imageList.length) {

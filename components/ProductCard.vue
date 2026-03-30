@@ -6,10 +6,6 @@
       <view class="product-condition">{{ goods.conditionLabel }}</view>
     </view>
 
-    <view class="product-favorite" @click.stop="toggleFavorite">
-      <uni-icons :type="favoriteState ? 'heart-filled' : 'heart'" :size="18" :color="favoriteState ? '#e57373' : '#8c9199'"></uni-icons>
-    </view>
-
     <view class="product-body">
       <view class="product-title">{{ goods.title }}</view>
       <view class="product-price-row">
@@ -25,75 +21,12 @@
 </template>
 
 <script>
-import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
-import { addFavorite, removeFavorite } from '../api/favorite'
-import { useAuthStore } from '../store/auth'
-
 export default {
-  emits: ['click', 'favorite-change'],
-  components: {
-    UniIcons
-  },
+  emits: ['click'],
   props: {
     goods: {
       type: Object,
       default: () => ({})
-    }
-  },
-  data() {
-    return {
-      favoriteState: false,
-      toggling: false,
-      authStore: useAuthStore()
-    }
-  },
-  watch: {
-    goods: {
-      immediate: true,
-      deep: true,
-      handler(value) {
-        this.favoriteState = Boolean(value && value.isFavorite)
-      }
-    }
-  },
-  methods: {
-    ensureLogin() {
-      if (this.authStore.sync().isLoggedIn()) {
-        return true
-      }
-      uni.showToast({ title: '请先登录后再收藏', icon: 'none' })
-      setTimeout(() => {
-        uni.navigateTo({ url: '/pages/user/login' })
-      }, 260)
-      return false
-    },
-    toggleFavorite() {
-      if (this.toggling) {
-        return
-      }
-      if (!this.ensureLogin()) {
-        return
-      }
-
-      const next = !this.favoriteState
-      const action = next ? () => addFavorite(this.goods.id) : () => removeFavorite(this.goods.id)
-      this.toggling = true
-      action()
-        .then((res) => {
-          if (res && res.code === 0) {
-            this.favoriteState = next
-            this.$emit('favorite-change', { id: this.goods.id, value: next })
-            uni.showToast({ title: res.message || (next ? '收藏成功' : '已取消收藏'), icon: 'none' })
-            return
-          }
-          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
-        })
-        .catch(() => {
-          uni.showToast({ title: '操作失败', icon: 'none' })
-        })
-        .finally(() => {
-          this.toggling = false
-        })
     }
   }
 }
@@ -137,22 +70,6 @@ export default {
   border: 1rpx solid rgba(215, 110, 98, 0.2);
   color: #c0554f;
   font-size: 18rpx;
-}
-
-.product-favorite {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  width: 58rpx;
-  height: 58rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  box-shadow: 0 10rpx 18rpx rgba(31, 35, 41, 0.08);
-  color: #8c9199;
 }
 
 .product-body {
