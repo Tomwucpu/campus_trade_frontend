@@ -3,7 +3,9 @@
     <view class="login-hero safe-top">
       <view class="hero-orb orb-right"></view>
       <view class="hero-orb orb-left"></view>
-      <view class="login-brand-icon">集</view>
+      <view class="login-brand-icon">
+        <text class="icon-font bi bi-shop login-brand-glyph"></text>
+      </view>
       <view class="login-brand-title">校园二手市集</view>
       <view class="login-brand-subtitle">让闲置流转起来，继续在校内遇见合适的物品。</view>
     </view>
@@ -26,17 +28,12 @@
 
         <view class="field-group">
           <view class="field-label">密码</view>
-          <view class="password-wrap">
-            <input
-              v-model="form.password"
-              class="market-input password-input"
-              :password="!showPassword"
-              placeholder="请输入密码"
-            />
-            <view class="password-toggle" @click="showPassword = !showPassword">
-              {{ showPassword ? '隐藏' : '显示' }}
-            </view>
-          </view>
+          <input
+            v-model="form.password"
+            class="market-input"
+            password
+            placeholder="请输入密码"
+          />
         </view>
 
         <view class="login-extra">
@@ -66,7 +63,6 @@ export default {
       theme: 'light',
       themeClass: 'theme-light',
       authStore: useAuthStore(),
-      showPassword: false,
       form: {
         username: '',
         password: ''
@@ -169,6 +165,11 @@ export default {
   z-index: 1;
 }
 
+.login-brand-glyph {
+  font-size: 52rpx;
+  line-height: 1;
+}
+
 .login-brand-title {
   font-size: 44rpx;
   font-weight: 700;
@@ -231,23 +232,6 @@ export default {
   font-size: 24rpx;
   color: #2c3e50;
   margin-bottom: 14rpx;
-}
-
-.password-wrap {
-  position: relative;
-}
-
-.password-input {
-  padding-right: 110rpx;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 22rpx;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6c757d;
-  font-size: 22rpx;
 }
 
 .login-extra {

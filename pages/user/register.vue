@@ -3,7 +3,9 @@
     <view class="login-hero safe-top">
       <view class="hero-orb orb-right"></view>
       <view class="hero-orb orb-left"></view>
-      <view class="login-brand-icon">新</view>
+      <view class="login-brand-icon">
+        <text class="icon-font bi bi-person-plus-fill login-brand-glyph"></text>
+      </view>
       <view class="login-brand-title">创建校园账号</view>
       <view class="login-brand-subtitle">注册后可发布闲置、收藏商品并跟踪整个交易流程。</view>
     </view>
@@ -161,6 +163,11 @@ export default {
   font-weight: 700;
   position: relative;
   z-index: 1;
+}
+
+.login-brand-glyph {
+  font-size: 52rpx;
+  line-height: 1;
 }
 
 .login-brand-title {
