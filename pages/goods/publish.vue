@@ -68,12 +68,6 @@
             <view v-else-if="!aiValuation" class="ai-empty">
               <view class="ai-empty-title">{{ aiEmptyTitle }}</view>
               <view class="ai-empty-text">{{ aiEmptyText }}</view>
-
-              <view class="ai-actions single">
-                <button class="market-primary-btn ai-primary-btn" :disabled="!imageList.length" @click="runAiValuation">
-                  开始识别
-                </button>
-              </view>
             </view>
 
             <view v-else class="ai-result-card">
@@ -282,7 +276,14 @@ import { syncThemePage } from '../../utils/theme'
 const DRAFT_KEY = 'goods_publish_draft'
 const UPLOAD_COMPRESS_THRESHOLD_BYTES = 1024 * 1024
 const UPLOAD_MAX_LONG_EDGE = 1600
-const UPLOAD_COMPRESS_QUALITY = 80
+
+function normalizeStorageKeyPart(value) {
+  const text = String(value == null ? '' : value).trim()
+  if (!text) {
+    return 'unknown'
+  }
+  return text.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
 
 function createDefaultForm() {
   return {
@@ -336,6 +337,7 @@ export default {
       previewVisible: false,
       previewIndex: 0,
       localImageMetaMap: {},
+      activeDraftKey: '',
       aiLoading: false,
       applyingSuggestion: false,
       submitting: false,
@@ -344,9 +346,6 @@ export default {
     }
   },
   computed: {
-    draftKey() {
-      return this.isEdit && this.id ? `${DRAFT_KEY}_${this.id}` : DRAFT_KEY
-    },
     imageList() {
       return Array.isArray(this.form.images) ? this.form.images : []
     },
@@ -380,16 +379,16 @@ export default {
       }
       return this.isEdit
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
-        : '发布后会立即进入列表展示，图片会自动压缩并转换为更适合展示的格式。'
+        : '发布后会进入列表展示，图片会自动压缩进行展示。'
     },
     aiEntryText() {
       if (!this.imageList.length) {
         return '智能估价'
       }
-      if (this.aiPanelVisible) {
-        return '收起估价'
+      if (!this.aiValuation) {
+        return this.aiErrorMessage ? '重新估价' : '智能估价'
       }
-      return this.aiValuation ? '查看估价' : '智能估价'
+      return this.aiPanelVisible ? '收起估价' : '查看估价'
     },
     aiEntryCaption() {
       if (!this.imageList.length) {
@@ -401,7 +400,10 @@ export default {
       if (this.aiValuation) {
         return '已生成一份价格建议，点开即可查看。'
       }
-      return '点开后可生成成色、分类和价格建议。'
+      if (this.aiErrorMessage) {
+        return '上次识别失败，点击按钮即可重试。'
+      }
+      return '点击按钮即可生成成色、分类和价格建议。'
     },
     aiEmptyTitle() {
       return this.aiErrorMessage ? '这次识别没有成功' : '准备开始智能估价'
@@ -455,7 +457,7 @@ export default {
       }, 260)
       return
     }
-    this.restoreDraft()
+    this.syncDraftContext({ restore: true, force: true })
     this.fetchCategories()
     if (this.isEdit) {
       this.fetchDetail(!this.form.title)
@@ -463,6 +465,10 @@ export default {
   },
   onShow() {
     syncThemePage(this)
+    const draftContextChanged = this.syncDraftContext({ restore: true })
+    if (draftContextChanged && this.isEdit && !this.form.title) {
+      this.fetchDetail(true)
+    }
   },
   onBackPress() {
     if (!this.previewVisible) {
@@ -479,6 +485,35 @@ export default {
       }
       return amount.toFixed(2)
     },
+    resolveDraftOwnerKey() {
+      const store = this.authStore.sync()
+      const userId = store.getUserId()
+      if (userId || userId === 0) {
+        return `user_${normalizeStorageKeyPart(userId)}`
+      }
+      if (store.token) {
+        return `token_${normalizeStorageKeyPart(String(store.token).slice(-24))}`
+      }
+      return 'guest'
+    },
+    resolveDraftKey() {
+      const ownerKey = this.resolveDraftOwnerKey()
+      if (this.isEdit && this.id) {
+        return `${DRAFT_KEY}_${ownerKey}_${normalizeStorageKeyPart(this.id)}`
+      }
+      return `${DRAFT_KEY}_${ownerKey}`
+    },
+    syncDraftContext({ restore = false, force = false } = {}) {
+      const nextDraftKey = this.resolveDraftKey()
+      if (!force && this.activeDraftKey === nextDraftKey) {
+        return false
+      }
+      this.activeDraftKey = nextDraftKey
+      if (restore) {
+        this.restoreDraft(nextDraftKey)
+      }
+      return true
+    },
     buildDraftPayload() {
       return {
         form: this.form,
@@ -487,10 +522,14 @@ export default {
       }
     },
     saveDraft() {
-      uni.setStorageSync(this.draftKey, this.buildDraftPayload())
+      const draftKey = this.activeDraftKey || this.resolveDraftKey()
+      this.activeDraftKey = draftKey
+      uni.setStorageSync(draftKey, this.buildDraftPayload())
     },
-    restoreDraft() {
-      const draft = uni.getStorageSync(this.draftKey)
+    restoreDraft(draftKey = '') {
+      const currentDraftKey = draftKey || this.activeDraftKey || this.resolveDraftKey()
+      this.activeDraftKey = currentDraftKey
+      const draft = uni.getStorageSync(currentDraftKey)
       if (draft && typeof draft === 'object' && draft.form) {
         const merged = { ...createDefaultDraft(), ...draft }
         this.form = { ...createDefaultForm(), ...merged.form }
@@ -634,6 +673,10 @@ export default {
         uni.showToast({ title: '请先上传商品图片', icon: 'none' })
         return
       }
+      if (!this.aiValuation) {
+        this.runAiValuation()
+        return
+      }
       this.aiPanelVisible = !this.aiPanelVisible
     },
     selectCategory(item) {
@@ -725,35 +768,6 @@ export default {
     compressUploadImage(filePath, imageInfo = {}) {
       // #ifdef H5
       return Promise.resolve(filePath)
-      // #endif
-
-      // #ifndef H5
-      const width = Number(imageInfo.width) || 0
-      const height = Number(imageInfo.height) || 0
-      const longEdge = Math.max(width, height)
-      const scale = longEdge > UPLOAD_MAX_LONG_EDGE ? UPLOAD_MAX_LONG_EDGE / longEdge : 1
-
-      return new Promise((resolve) => {
-        const options = {
-          src: filePath,
-          quality: UPLOAD_COMPRESS_QUALITY
-        }
-
-        if (scale < 1) {
-          options.compressedWidth = Math.max(1, Math.round(width * scale))
-          options.compressedHeight = Math.max(1, Math.round(height * scale))
-        }
-
-        uni.compressImage({
-          ...options,
-          success: (res) => {
-            const nextPath = (res && res.tempFilePath) || filePath
-            this.rememberLocalImageMeta([{ path: nextPath }])
-            resolve(nextPath)
-          },
-          fail: () => resolve(filePath)
-        })
-      })
       // #endif
     },
     async prepareUploadImage(filePath) {
@@ -985,7 +999,7 @@ export default {
 
         if (res && res.code === 0 && res.data) {
           const targetId = res.data.id || this.id
-          uni.removeStorageSync(this.draftKey)
+          uni.removeStorageSync(this.activeDraftKey || this.resolveDraftKey())
           this.goodsStore.setLastViewedId(targetId)
           this.form = createDefaultForm()
           this.aiValuation = null
@@ -1559,10 +1573,6 @@ export default {
   gap: 16rpx;
 }
 
-.ai-actions.single {
-  display: block;
-}
-
 .ai-secondary-btn,
 .ai-primary-btn {
   flex: 1;
@@ -1582,10 +1592,6 @@ export default {
 .ai-secondary-btn:active,
 .ai-primary-btn:active {
   transform: translateY(2rpx) scale(0.98);
-}
-
-.ai-actions.single .ai-primary-btn {
-  width: 100%;
 }
 
 .field-group {
