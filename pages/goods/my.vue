@@ -38,9 +38,9 @@
         v-else-if="!displayList.length"
         variant="list"
         icon="bi bi-box-seam"
-        title="当前状态下还没有商品"
-        description="你可以继续发布新的闲置，也可以切换到其他状态查看。"
-        button-text="去发布"
+        :title="emptyTitle"
+        :description="emptyDescription"
+        :button-text="emptyButtonText"
         @action="goPublish"
       />
 
@@ -50,7 +50,7 @@
           :key="`${item.id}-${listVersion}`"
           class="goods-card"
           :style="{ animationDelay: `${index * 70}ms` }"
-          @click="openDetail(item.id)"
+          @click="openGoods(item)"
         >
           <view class="goods-main-row" :class="{ 'without-image': !item.imageUrl }">
             <image v-if="item.imageUrl" class="goods-image" :src="item.imageUrl" mode="aspectFill"></image>
@@ -81,7 +81,7 @@
           <view class="goods-actions" @click.stop>
             <button v-if="showEditAction(item)" class="action-pill" @click.stop="editGoods(item)">
               <text class="bi bi-pencil-square icon-font action-icon"></text>
-              编辑
+              {{ primaryActionText(item) }}
             </button>
 
             <button v-if="item.status === 'ON_SALE'" class="action-pill" @click.stop="changeStatus(item, 'OFFLINE')">
@@ -96,7 +96,7 @@
             <button
               v-if="!showEditAction(item) && !showDeleteAction(item)"
               class="action-pill"
-              @click.stop="openDetail(item.id)"
+              @click.stop="openGoods(item)"
             >
               <text class="bi bi-box-arrow-up-right icon-font action-icon"></text>
               查看详情
@@ -141,27 +141,27 @@ export default {
       ]
     }
   },
-  computed: {
+  _legacyComputed: {
     displayList() {
       return this.list
         .map((item, index) => normalizeGoodsItem(item, index))
         .filter((item) => item.status === this.activeTab)
     }
   },
-  onLoad() {
+  _legacyOnLoad() {
     if (!this.ensureLogin()) {
       return
     }
     syncThemePage(this)
     this.fetchList()
   },
-  onShow() {
+  _legacyOnShow() {
     syncThemePage(this)
     if (this.authStore.sync().isLoggedIn()) {
       this.fetchList()
     }
   },
-  methods: {
+  _legacyMethods: {
     ensureLogin() {
       if (this.authStore.sync().isLoggedIn()) {
         return true
@@ -319,6 +319,240 @@ export default {
         .then((res) => {
           if (res && res.code === 0) {
             uni.showToast({ title: res.message || '商品已删除', icon: 'success' })
+            this.fetchList()
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '删除失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '删除失败', icon: 'none' })
+        })
+    },
+    goPublish() {
+      uni.navigateTo({ url: '/pages/goods/publish' })
+    },
+    goBack() {
+      uni.navigateBack({
+        fail: () => {
+          uni.reLaunch({ url: '/pages/user/profile' })
+        }
+      })
+    }
+  },
+  computed: {
+    displayList() {
+      return this.list
+        .map((item, index) => normalizeGoodsItem(item, index))
+        .filter((item) => item.status === this.activeTab)
+    },
+    emptyTitle() {
+      return this.activeTab === 'DRAFT' ? '还没有草稿' : '当前状态下还没有商品'
+    },
+    emptyDescription() {
+      return this.activeTab === 'DRAFT'
+        ? '保存过的草稿会出现在这里，你也可以继续发布新的闲置。'
+        : '你可以继续发布新的闲置，也可以切换到其他状态查看。'
+    },
+    emptyButtonText() {
+      return this.activeTab === 'DRAFT' ? '新建发布' : '去发布'
+    }
+  },
+  onLoad(options) {
+    if (!this.ensureLogin()) {
+      return
+    }
+    this.tabs = [
+      { value: 'DRAFT', label: '草稿' },
+      { value: 'PENDING', label: '待审核' },
+      { value: 'ON_SALE', label: '在售' },
+      { value: 'SOLD', label: '已售出' },
+      { value: 'OFFLINE', label: '已下架' }
+    ]
+    const initialStatus = String((options && options.status) || '').trim().toUpperCase()
+    if (this.tabs.some((item) => item.value === initialStatus)) {
+      this.activeTab = initialStatus
+    }
+    syncThemePage(this)
+    this.fetchList()
+  },
+  onShow() {
+    syncThemePage(this)
+    if (this.authStore.sync().isLoggedIn()) {
+      this.fetchList()
+    }
+  },
+  methods: {
+    ensureLogin() {
+      if (this.authStore.sync().isLoggedIn()) {
+        return true
+      }
+      uni.showToast({ title: '请先登录后查看我的发布', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 260)
+      return false
+    },
+    setActiveTab(value) {
+      if (this.activeTab === value) {
+        return
+      }
+      this.activeTab = value
+      this.fetchList()
+    },
+    fetchList() {
+      this.isFetching = true
+      getMyGoodsList({
+        pageNum: 1,
+        pageSize: 50,
+        status: this.activeTab
+      })
+        .then((res) => {
+          if (res && res.code === 0) {
+            this.list = (res.data && res.data.records) || []
+            return
+          }
+          this.list = []
+        })
+        .catch(() => {
+          this.list = []
+        })
+        .finally(() => {
+          this.listVersion += 1
+          this.isFetching = false
+        })
+    },
+    showEditAction(item) {
+      return item.status !== 'SOLD'
+    },
+    primaryActionText(item) {
+      return item.status === 'DRAFT' ? '继续发布' : '编辑'
+    },
+    showDeleteAction(item) {
+      return ['DRAFT', 'ON_SALE', 'OFFLINE', 'SOLD'].includes(item.status)
+    },
+    statusText(status) {
+      if (status === 'DRAFT') {
+        return '草稿'
+      }
+      if (status === 'ON_SALE') {
+        return '在售'
+      }
+      if (status === 'OFFLINE') {
+        return '已下架'
+      }
+      if (status === 'SOLD') {
+        return '已售出'
+      }
+      return '待审核'
+    },
+    statusBadgeClass(status) {
+      if (status === 'DRAFT') {
+        return 'draft'
+      }
+      if (status === 'ON_SALE') {
+        return 'sale'
+      }
+      if (status === 'OFFLINE') {
+        return 'offline'
+      }
+      if (status === 'SOLD') {
+        return 'sold'
+      }
+      return 'pending'
+    },
+    formatShortDate(timestamp, fallback = '') {
+      const numeric = Number(timestamp || 0)
+      const validTimestamp = Number.isFinite(numeric) && numeric > 0 ? numeric : new Date(fallback).getTime()
+      if (!validTimestamp || Number.isNaN(validTimestamp)) {
+        return '--'
+      }
+      const date = new Date(validTimestamp)
+      return `${date.getMonth() + 1}月${date.getDate()}日`
+    },
+    openGoods(item) {
+      if (item && item.status === 'DRAFT') {
+        this.editGoods(item)
+        return
+      }
+      uni.navigateTo({ url: `/pages/goods/detail?id=${item.id}` })
+    },
+    editGoods(item) {
+      if (!item.canEdit) {
+        this.showBlockedReason(item.editBlockedReason)
+        return
+      }
+      uni.navigateTo({ url: `/pages/goods/publish?id=${item.id}` })
+    },
+    showBlockedReason(reason) {
+      uni.showModal({
+        title: '暂不可操作',
+        content: reason || '当前状态暂不支持该操作',
+        showCancel: false
+      })
+    },
+    showActionConfirm(title, content) {
+      return new Promise((resolve) => {
+        uni.showModal({
+          title,
+          content,
+          success: ({ confirm }) => resolve(Boolean(confirm)),
+          fail: () => resolve(false)
+        })
+      })
+    },
+    async changeStatus(item, nextStatus) {
+      if (nextStatus === 'ON_SALE' && !item.canOnSale) {
+        this.showBlockedReason(item.onSaleBlockedReason)
+        return
+      }
+
+      if (nextStatus === 'ON_SALE' && item.hasPendingPaymentOrder) {
+        const confirmed = await this.showActionConfirm(
+          '重新上架',
+          '重新上架后会自动取消当前商品的待付款订单，并恢复对外出售，确认继续吗？'
+        )
+        if (!confirmed) {
+          return
+        }
+      }
+
+      const action = nextStatus === 'ON_SALE' ? () => onSaleGoods(item.id) : () => offSaleGoods(item.id)
+      const title = nextStatus === 'ON_SALE' ? '商品已重新上架' : '商品已下架'
+
+      action()
+        .then((res) => {
+          if (res && res.code === 0) {
+            uni.showToast({ title: res.message || title, icon: 'success' })
+            this.fetchList()
+            return
+          }
+          uni.showToast({ title: (res && res.message) || '操作失败', icon: 'none' })
+        })
+        .catch(() => {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        })
+    },
+    async confirmDelete(item) {
+      if (!item.canDelete) {
+        this.showBlockedReason(item.deleteBlockedReason)
+        return
+      }
+
+      const title = item.status === 'DRAFT' ? '删除草稿' : '删除商品'
+      const content = item.status === 'DRAFT'
+        ? '删除后该草稿将无法继续编辑，确认继续吗？'
+        : item.hasPendingPaymentOrder
+          ? '删除后商品会从商品列表和我的发布中移除，并自动取消当前商品的待付款订单，确认继续吗？'
+          : '删除后商品会从商品列表和我的发布中移除，确认继续吗？'
+      const confirmed = await this.showActionConfirm(title, content)
+      if (!confirmed) {
+        return
+      }
+
+      deleteGoods(item.id)
+        .then((res) => {
+          if (res && res.code === 0) {
+            uni.showToast({ title: res.message || (item.status === 'DRAFT' ? '草稿已删除' : '商品已删除'), icon: 'success' })
             this.fetchList()
             return
           }
@@ -606,6 +840,10 @@ export default {
 
 .status-pill.offline {
   background: #8b8a84;
+}
+
+.status-pill.draft {
+  background: #8a6f45;
 }
 
 .status-pill.sold {

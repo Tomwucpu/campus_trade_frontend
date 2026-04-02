@@ -104,12 +104,12 @@
           </view>
         </view>
 
-        <view class="menu-item" @click="go('/pages/goods/publish')">
+        <view class="menu-item" @click="go('/pages/goods/my?status=DRAFT')">
           <view class="menu-main">
             <view class="menu-icon-wrap">
               <text class="bi bi-plus-circle icon-font menu-icon-font"></text>
             </view>
-            <text class="menu-text">继续发布</text>
+            <text class="menu-text">草稿</text>
           </view>
           <view class="menu-right">
             <text class="bi bi-chevron-right icon-font arrow-icon"></text>

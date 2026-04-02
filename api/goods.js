@@ -31,11 +31,34 @@ export function createGoods(data) {
   })
 }
 
+export function createGoodsDraft(data) {
+  return request({
+    url: '/goods/drafts',
+    method: 'POST',
+    data
+  })
+}
+
 export function updateGoods(id, data) {
   return request({
     url: `/goods/${id}`,
     method: 'PUT',
     data
+  })
+}
+
+export function updateGoodsDraft(id, data) {
+  return request({
+    url: `/goods/drafts/${id}`,
+    method: 'PUT',
+    data
+  })
+}
+
+export function publishGoodsDraft(id) {
+  return request({
+    url: `/goods/drafts/${id}/publish`,
+    method: 'POST'
   })
 }
 

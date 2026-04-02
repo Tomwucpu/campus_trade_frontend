@@ -29,6 +29,7 @@ const ORDER_STATUS_META = {
 }
 
 const GOODS_STATUS_TEXT = {
+  DRAFT: '草稿',
   PENDING: '待审核',
   ON_SALE: '在售中',
   OFFLINE: '已下架',
@@ -291,7 +292,7 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     status: item.status || 'ON_SALE',
     statusText: GOODS_STATUS_TEXT[item.status] || '在售中',
     canEdit: hasBooleanValue(item.canEdit) ? item.canEdit : item.status !== 'SOLD',
-    canDelete: hasBooleanValue(item.canDelete) ? item.canDelete : ['ON_SALE', 'OFFLINE'].includes(item.status),
+    canDelete: hasBooleanValue(item.canDelete) ? item.canDelete : ['DRAFT', 'ON_SALE', 'OFFLINE'].includes(item.status),
     canOnSale: hasBooleanValue(item.canOnSale) ? item.canOnSale : item.status === 'OFFLINE',
     hasPendingPaymentOrder: item.hasPendingPaymentOrder === true,
     editBlockedReason: item.editBlockedReason || '',

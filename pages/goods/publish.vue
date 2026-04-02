@@ -210,7 +210,17 @@
         </view>
       </view>
 
-      <button class="market-primary-btn submit-btn" :disabled="submitting" @click="submit">{{ submitButtonText }}</button>
+      <view class="submit-actions">
+        <button
+          v-if="isCreateMode || isDraftMode"
+          class="submit-draft-btn"
+          :disabled="submitting || leaving"
+          @click="handleSaveDraftTap"
+        >
+          {{ saveDraftButtonText }}
+        </button>
+        <button class="market-primary-btn submit-btn" :disabled="submitting" @click="submit">{{ submitButtonText }}</button>
+      </view>
       <view class="submit-tip">{{ submitTip }}</view>
     </view>
 
@@ -258,9 +268,12 @@ import {
   adoptAiValuation,
   createAiValuation,
   createGoods,
+  createGoodsDraft,
   getGoodsCategories,
   getGoodsDetail,
+  publishGoodsDraft,
   updateGoods,
+  updateGoodsDraft,
   uploadGoodsImage
 } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
@@ -273,9 +286,11 @@ import {
 import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { syncThemePage } from '../../utils/theme'
 
+const MODE_CREATE = 'create'
+const MODE_DRAFT = 'draft'
+const MODE_EDIT = 'edit'
 const UPLOAD_COMPRESS_THRESHOLD_BYTES = 1024 * 1024
 const UPLOAD_MAX_LONG_EDGE = 1600
-const PUBLISH_DRAFT_KEY_PREFIX = 'goods_publish_draft'
 
 function createDefaultForm() {
   return {
@@ -304,6 +319,7 @@ export default {
   data() {
     return {
       id: '',
+      mode: MODE_CREATE,
       isEdit: false,
       theme: 'light',
       themeClass: 'theme-light',
@@ -324,11 +340,24 @@ export default {
       aiLoading: false,
       applyingSuggestion: false,
       submitting: false,
+      leaving: false,
+      detailLoaded: false,
+      lastSavedSnapshot: '',
+      hasUnsavedChanges: false,
       editCapability: null,
       editWillAutoCancelPendingOrder: false
     }
   },
   computed: {
+    isCreateMode() {
+      return this.mode === MODE_CREATE
+    },
+    isDraftMode() {
+      return this.mode === MODE_DRAFT
+    },
+    isPublishedEditMode() {
+      return this.mode === MODE_EDIT
+    },
     imageList() {
       return Array.isArray(this.form.images) ? this.form.images : []
     },
@@ -348,19 +377,34 @@ export default {
       return conditionLevel >= 10 ? '全新' : `${conditionLevel}成新`
     },
     pageTitle() {
-      return this.isEdit ? '编辑商品' : '发布商品'
+      if (this.isDraftMode) {
+        return '继续发布'
+      }
+      return this.isPublishedEditMode ? '编辑商品' : '发布商品'
     },
     submitButtonText() {
       if (this.submitting) {
-        return this.isEdit ? '保存中...' : '发布中...'
+        return this.isPublishedEditMode ? '保存中...' : '发布中...'
       }
-      return this.isEdit ? '保存修改' : '立即发布'
+      if (this.isDraftMode) {
+        return '立即发布'
+      }
+      return this.isPublishedEditMode ? '保存修改' : '立即发布'
+    },
+    saveDraftButtonText() {
+      if (this.leaving || this.submitting) {
+        return '保存中'
+      }
+      return '保存草稿'
     },
     submitTip() {
-      if (this.isEdit && this.editWillAutoCancelPendingOrder) {
+      if (this.isPublishedEditMode && this.editWillAutoCancelPendingOrder) {
         return '本次保存会自动取消当前商品的待付款订单，保存后商品会恢复在售状态。'
       }
-      return this.isEdit
+      if (this.isDraftMode) {
+        return '草稿发布前会执行完整校验，发布成功后会转为正式商品。'
+      }
+      return this.isPublishedEditMode
         ? '修改会立即同步到商品详情页，方便你继续调整描述和价格。'
         : '发布后会进入列表展示，图片会自动压缩进行展示。'
     },
@@ -381,7 +425,7 @@ export default {
         return '正在分析图片，请稍等片刻。'
       }
       if (this.aiValuation) {
-        return '已生成一份价格建议，点开即可查看。'
+        return '已经生成一份价格建议，点开即可查看。'
       }
       if (this.aiErrorMessage) {
         return '上次识别失败，点击按钮即可重试。'
@@ -431,9 +475,11 @@ export default {
   },
   onLoad(options) {
     syncThemePage(this)
-    this.clearLegacyDraftCache()
     this.id = (options && options.id) || ''
     this.isEdit = Boolean(this.id)
+    this.mode = this.id ? MODE_EDIT : MODE_CREATE
+    this.detailLoaded = false
+    this.resetDirtyTracking()
     if (this.isEdit && !this.authStore.sync().isLoggedIn()) {
       uni.showToast({ title: '请先登录后再编辑商品', icon: 'none' })
       setTimeout(() => {
@@ -448,16 +494,28 @@ export default {
   },
   onShow() {
     syncThemePage(this)
-    if (this.isEdit && this.authStore.sync().isLoggedIn() && !this.form.title) {
+    if (this.isEdit && this.authStore.sync().isLoggedIn() && !this.detailLoaded) {
       this.fetchDetail(true)
     }
   },
   onBackPress() {
-    if (!this.previewVisible) {
-      return false
+    if (this.previewVisible) {
+      this.closePreview()
+      return true
     }
-    this.closePreview()
-    return true
+    if (this.showCategoryPicker) {
+      this.showCategoryPicker = false
+      return true
+    }
+    if (this.showConditionPicker) {
+      this.showConditionPicker = false
+      return true
+    }
+    if (this.shouldPromptSaveOnLeave()) {
+      this.handlePageExit()
+      return true
+    }
+    return false
   },
   methods: {
     formatMoney(value) {
@@ -467,25 +525,36 @@ export default {
       }
       return amount.toFixed(2)
     },
-    clearLegacyDraftCache() {
-      try {
-        const info = uni.getStorageInfoSync()
-        const keys = Array.isArray(info && info.keys) ? info.keys : []
-        keys
-          .filter((key) => String(key || '').startsWith(PUBLISH_DRAFT_KEY_PREFIX))
-          .forEach((key) => {
-            uni.removeStorageSync(key)
-          })
-      } catch (error) {}
+    normalizeDecimalString(value) {
+      const raw = `${value ?? ''}`.trim()
+      if (!raw) {
+        return ''
+      }
+      const numeric = Number(raw)
+      return Number.isFinite(numeric) ? `${numeric}` : raw
+    },
+    buildFormSnapshot() {
+      return JSON.stringify({
+        title: (this.form.title || '').trim(),
+        categoryId: this.form.categoryId ? Number(this.form.categoryId) : null,
+        conditionLevel: this.form.conditionLevel ? clampConditionLevel(this.form.conditionLevel) : null,
+        price: this.normalizeDecimalString(this.form.price),
+        originalPrice: this.normalizeDecimalString(this.form.originalPrice),
+        description: (this.form.description || '').trim(),
+        images: this.imageList.filter(Boolean)
+      })
+    },
+    resetDirtyTracking() {
+      this.lastSavedSnapshot = this.buildFormSnapshot()
+      this.hasUnsavedChanges = false
     },
     saveDraft() {
-      // Draft persistence removed: publish content is no longer cached locally.
+      this.hasUnsavedChanges = this.buildFormSnapshot() !== this.lastSavedSnapshot
     },
     ensureLoggedIn() {
       if (this.authStore.sync().isLoggedIn()) {
         return true
       }
-
       uni.showToast({ title: '请先登录后再操作', icon: 'none' })
       setTimeout(() => {
         uni.navigateTo({ url: '/pages/user/login' })
@@ -502,56 +571,86 @@ export default {
         })
       })
     },
+    showLeaveActionSheet() {
+      return new Promise((resolve) => {
+        uni.showActionSheet({
+          itemList: ['保存到草稿并离开', '直接离开'],
+          success: ({ tapIndex }) => resolve(tapIndex),
+          fail: () => resolve(-1)
+        })
+      })
+    },
+    shouldPromptSaveOnLeave() {
+      return (this.isCreateMode || this.isDraftMode) && this.hasUnsavedChanges
+    },
     fetchCategories() {
       getGoodsCategories()
         .then((res) => {
           if (res && res.code === 0 && Array.isArray(res.data) && res.data.length) {
             this.categories = res.data
-            if (!this.form.categoryId) {
+            const hasCurrentCategory = this.categories.some((item) => String(item.id) === String(this.form.categoryId))
+            if (!hasCurrentCategory) {
               this.form.categoryId = res.data[0].id
             }
-            this.saveDraft()
+            if (!this.id && !this.hasUnsavedChanges) {
+              this.resetDirtyTracking()
+            } else {
+              this.saveDraft()
+            }
           }
         })
         .catch(() => {})
+    },
+    applyDetailToForm(rawDetail = {}) {
+      const detail = normalizeGoodsItem(rawDetail, 0)
+      this.editCapability = detail
+      this.editWillAutoCancelPendingOrder = detail.status !== 'DRAFT' && detail.hasPendingPaymentOrder === true
+      this.mode = detail.status === 'DRAFT' ? MODE_DRAFT : MODE_EDIT
+      this.form = {
+        ...createDefaultForm(),
+        title: detail.title || '',
+        categoryId: detail.categoryId || this.form.categoryId || 1,
+        conditionLevel: Number(detail.conditionLevel) || 9,
+        price: detail.priceValue ? String(detail.priceValue) : '',
+        originalPrice: detail.originalPriceValue ? String(detail.originalPriceValue) : '',
+        description: detail.description || '',
+        images: Array.isArray(rawDetail.images) ? rawDetail.images.slice(0, 9) : []
+      }
+      this.aiValuation = null
+      this.aiPanelVisible = false
+      this.aiErrorMessage = ''
+      this.categoryTouched = true
+      this.localImageMetaMap = {}
+      this.detailLoaded = true
+      this.resetDirtyTracking()
+      return detail
     },
     fetchDetail(syncForm = true) {
       getGoodsDetail(this.id)
         .then((res) => {
           if (res && res.code === 0 && res.data) {
             const detail = normalizeGoodsItem(res.data, 0)
-            this.editCapability = detail
-            this.editWillAutoCancelPendingOrder = detail.hasPendingPaymentOrder === true
-            if (detail.canEdit === false) {
+            if (detail.status !== 'DRAFT' && detail.canEdit === false) {
+              this.editCapability = detail
+              this.editWillAutoCancelPendingOrder = detail.hasPendingPaymentOrder === true
               uni.showModal({
                 title: '当前不可编辑',
                 content: detail.editBlockedReason || '当前状态暂不支持编辑商品',
                 showCancel: false,
                 success: () => {
-                  this.goBack()
+                  this.performBackNavigation()
                 }
               })
               return
             }
             if (!syncForm) {
+              this.editCapability = detail
+              this.editWillAutoCancelPendingOrder = detail.status !== 'DRAFT' && detail.hasPendingPaymentOrder === true
+              this.mode = detail.status === 'DRAFT' ? MODE_DRAFT : MODE_EDIT
+              this.detailLoaded = true
               return
             }
-            this.form = {
-              ...createDefaultForm(),
-              title: detail.title || '',
-              categoryId: detail.categoryId || 1,
-              conditionLevel: Number(detail.conditionLevel) || 9,
-              price: detail.priceValue ? String(detail.priceValue) : '',
-              originalPrice: detail.originalPriceValue ? String(detail.originalPriceValue) : '',
-              description: detail.description || '',
-              images: Array.isArray(res.data.images) && res.data.images.length ? res.data.images.slice(0, 9) : []
-            }
-            this.aiValuation = null
-            this.aiPanelVisible = false
-            this.aiErrorMessage = ''
-            this.categoryTouched = true
-            this.localImageMetaMap = {}
-            this.saveDraft()
+            this.applyDetailToForm(res.data)
             return
           }
           uni.showToast({ title: (res && res.message) || '商品加载失败', icon: 'none' })
@@ -630,7 +729,6 @@ export default {
       if (!Array.isArray(fileList) || !fileList.length) {
         return
       }
-
       const nextMeta = {}
       fileList.forEach((file) => {
         const path = file && (file.path || file.tempFilePath)
@@ -641,11 +739,9 @@ export default {
           size: Number(file.size) || 0
         }
       })
-
       if (!Object.keys(nextMeta).length) {
         return
       }
-
       this.localImageMetaMap = {
         ...this.localImageMetaMap,
         ...nextMeta
@@ -707,17 +803,14 @@ export default {
       if (!filePath || this.isUploadedImage(filePath)) {
         return filePath
       }
-
       try {
         const [imageInfo, fileSize] = await Promise.all([
           this.getLocalImageInfo(filePath),
           this.getLocalImageSize(filePath)
         ])
-
         if (!this.needsUploadCompression(imageInfo, fileSize)) {
           return filePath
         }
-
         return await this.compressUploadImage(filePath, imageInfo)
       } catch (error) {
         return filePath
@@ -731,7 +824,6 @@ export default {
           result.push(imagePath)
           continue
         }
-
         uni.showLoading({
           title: `上传图片 ${index + 1}/${this.imageList.length}`,
           mask: true
@@ -858,7 +950,6 @@ export default {
           adopted: true
         }
         this.saveDraft()
-
         uni.hideLoading()
         uni.showToast({ title: '已回填 AI 建议', icon: 'success' })
       } catch (error) {
@@ -869,6 +960,106 @@ export default {
         this.applyingSuggestion = false
       }
     },
+    normalizeOptionalNumber(value) {
+      const raw = `${value ?? ''}`.trim()
+      if (!raw) {
+        return null
+      }
+      const numeric = Number(raw)
+      return Number.isFinite(numeric) ? numeric : null
+    },
+    buildDraftPayload(images) {
+      return {
+        title: (this.form.title || '').trim(),
+        categoryId: this.form.categoryId ? Number(this.form.categoryId) : null,
+        conditionLevel: this.form.conditionLevel ? clampConditionLevel(this.form.conditionLevel) : null,
+        price: this.normalizeOptionalNumber(this.form.price),
+        originalPrice: this.normalizeOptionalNumber(this.form.originalPrice),
+        description: (this.form.description || '').trim(),
+        images
+      }
+    },
+    buildPublishPayload(images) {
+      return {
+        title: (this.form.title || '').trim(),
+        categoryId: Number(this.form.categoryId),
+        conditionLevel: clampConditionLevel(this.form.conditionLevel),
+        price: Number(this.form.price),
+        originalPrice: this.normalizeOptionalNumber(this.form.originalPrice),
+        description: (this.form.description || '').trim(),
+        images
+      }
+    },
+    async persistDraftToServer(options = {}) {
+      if (!this.ensureLoggedIn()) {
+        throw new Error('请先登录后再保存草稿')
+      }
+      const { loadingTitle = '保存草稿中', showLoading = true } = options
+      if (showLoading) {
+        uni.showLoading({ title: loadingTitle, mask: true })
+      }
+      try {
+        const images = await this.uploadPendingImages()
+        const payload = this.buildDraftPayload(images)
+        const action = this.isDraftMode && this.id
+          ? () => updateGoodsDraft(this.id, payload)
+          : () => createGoodsDraft(payload)
+        const res = await action()
+        if (!res || res.code !== 0 || !res.data) {
+          throw new Error((res && res.message) || '保存草稿失败')
+        }
+        this.id = `${res.data.id || this.id || ''}`
+        this.isEdit = Boolean(this.id)
+        this.applyDetailToForm(res.data)
+        return res.data
+      } finally {
+        if (showLoading) {
+          uni.hideLoading()
+        }
+      }
+    },
+    async handleSaveDraftTap() {
+      if (this.submitting || this.leaving || this.isPublishedEditMode) {
+        return
+      }
+      if (this.isDraftMode && !this.hasUnsavedChanges) {
+        uni.showToast({ title: '草稿已是最新', icon: 'none' })
+        return
+      }
+      try {
+        const savedDraft = await this.persistDraftToServer({ loadingTitle: '保存草稿中', showLoading: true })
+        if (!savedDraft) {
+          return
+        }
+        uni.showToast({ title: '草稿已保存', icon: 'success' })
+      } catch (error) {
+        uni.showToast({ title: error && error.message ? error.message : '保存草稿失败', icon: 'none' })
+      }
+    },
+    async handlePageExit() {
+      if (this.leaving || this.submitting) {
+        return
+      }
+      this.leaving = true
+      try {
+        if (this.shouldPromptSaveOnLeave()) {
+          const actionIndex = await this.showLeaveActionSheet()
+          if (actionIndex === 0) {
+            try {
+              await this.persistDraftToServer({ loadingTitle: '保存草稿中', showLoading: true })
+            } catch (error) {
+              uni.showToast({ title: error && error.message ? error.message : '保存草稿失败', icon: 'none' })
+              return
+            }
+          } else if (actionIndex !== 1) {
+            return
+          }
+        }
+        this.performBackNavigation()
+      } finally {
+        this.leaving = false
+      }
+    },
     async submit() {
       if (this.submitting) {
         return
@@ -876,7 +1067,7 @@ export default {
       if (!this.ensureLoggedIn()) {
         return
       }
-      if (this.isEdit && this.editCapability && this.editCapability.canEdit === false) {
+      if (this.isPublishedEditMode && this.editCapability && this.editCapability.canEdit === false) {
         uni.showToast({
           title: this.editCapability.editBlockedReason || '当前状态暂不支持编辑商品',
           icon: 'none'
@@ -890,7 +1081,7 @@ export default {
       }
 
       const price = Number(this.form.price)
-      const originalPrice = this.form.originalPrice ? Number(this.form.originalPrice) : null
+      const originalPrice = this.normalizeOptionalNumber(this.form.originalPrice)
       if (!price || Number.isNaN(price) || price <= 0) {
         uni.showToast({ title: '请输入正确的出售价格', icon: 'none' })
         return
@@ -900,7 +1091,7 @@ export default {
         return
       }
 
-      if (this.isEdit && this.editWillAutoCancelPendingOrder) {
+      if (this.isPublishedEditMode && this.editWillAutoCancelPendingOrder) {
         const confirmed = await this.showActionConfirm(
           '保存修改',
           '保存后会自动取消当前商品的待付款订单，并将商品恢复为在售状态，确认继续吗？'
@@ -912,26 +1103,29 @@ export default {
 
       this.submitting = true
       uni.showLoading({
-        title: this.isEdit ? '保存中' : '发布中',
+        title: this.isPublishedEditMode ? '保存中' : '发布中',
         mask: true
       })
 
       try {
         const images = await this.uploadPendingImages()
-        const payload = {
-          title: this.form.title.trim(),
-          categoryId: Number(this.form.categoryId),
-          conditionLevel: clampConditionLevel(this.form.conditionLevel),
-          price,
-          originalPrice,
-          description: this.form.description.trim(),
-          images
+        let res = null
+        if (this.isCreateMode) {
+          res = await createGoods(this.buildPublishPayload(images))
+        } else if (this.isDraftMode) {
+          const saveRes = await updateGoodsDraft(this.id, this.buildDraftPayload(images))
+          if (!saveRes || saveRes.code !== 0) {
+            throw new Error((saveRes && saveRes.message) || '草稿同步失败')
+          }
+          this.applyDetailToForm(saveRes.data || {})
+          res = await publishGoodsDraft(this.id)
+        } else {
+          res = await updateGoods(this.id, this.buildPublishPayload(images))
         }
-        const action = this.isEdit ? () => updateGoods(this.id, payload) : () => createGoods(payload)
-        const res = await action()
 
         if (res && res.code === 0 && res.data) {
           const targetId = res.data.id || this.id
+          const wasEditMode = this.isPublishedEditMode
           this.goodsStore.setLastViewedId(targetId)
           this.form = createDefaultForm()
           this.aiValuation = null
@@ -939,10 +1133,13 @@ export default {
           this.aiErrorMessage = ''
           this.categoryTouched = false
           this.localImageMetaMap = {}
+          this.detailLoaded = false
+          this.mode = MODE_CREATE
+          this.resetDirtyTracking()
           uni.hideLoading()
-          uni.showToast({ title: res.message || (this.isEdit ? '修改成功' : '发布成功'), icon: 'success' })
+          uni.showToast({ title: res.message || (wasEditMode ? '修改成功' : '发布成功'), icon: 'success' })
           setTimeout(() => {
-            const query = this.isEdit ? `id=${targetId}` : `id=${targetId}&fromPublish=1`
+            const query = wasEditMode ? `id=${targetId}` : `id=${targetId}&fromPublish=1`
             uni.redirectTo({ url: `/pages/goods/detail?${query}` })
           }, 260)
           return
@@ -956,29 +1153,28 @@ export default {
         this.submitting = false
       }
     },
-    goBack() {
-      if (this.previewVisible) {
-        this.closePreview()
-        return
-      }
-
-      if (this.showCategoryPicker) {
-        this.showCategoryPicker = false
-        return
-      }
-
-      if (this.showConditionPicker) {
-        this.showConditionPicker = false
-        return
-      }
-
+    performBackNavigation() {
       const pages = getCurrentPages()
       if (Array.isArray(pages) && pages.length > 1) {
         uni.navigateBack({ delta: 1 })
         return
       }
-
       uni.reLaunch({ url: '/pages/index/index' })
+    },
+    goBack() {
+      if (this.previewVisible) {
+        this.closePreview()
+        return
+      }
+      if (this.showCategoryPicker) {
+        this.showCategoryPicker = false
+        return
+      }
+      if (this.showConditionPicker) {
+        this.showConditionPicker = false
+        return
+      }
+      this.handlePageExit()
     }
   }
 }
@@ -1022,6 +1218,33 @@ export default {
 .placeholder-btn {
   opacity: 0;
   pointer-events: none;
+}
+
+.save-draft-btn {
+  min-width: 132rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid var(--publish-border);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--publish-accent-strong);
+  font-size: 22rpx;
+  font-weight: 700;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.save-draft-btn::after {
+  border: none;
+}
+
+.save-draft-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 8rpx 16rpx rgba(45, 39, 31, 0.12);
+}
+
+.save-draft-btn[disabled] {
+  opacity: 0.6;
 }
 
 .publish-card {
@@ -1650,8 +1873,46 @@ export default {
   color: var(--campus-text);
 }
 
+.submit-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 18rpx;
+}
+
+.submit-draft-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 88rpx;
+  line-height: 88rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid var(--publish-border);
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--publish-accent-strong);
+  font-size: 28rpx;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(18rpx);
+  animation: publishSubmitIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 170ms forwards;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.submit-draft-btn::after {
+  border: none;
+}
+
+.submit-draft-btn:active {
+  transform: translateY(2rpx) scale(0.985);
+  box-shadow: 0 6rpx 14rpx rgba(39, 35, 30, 0.12);
+}
+
+.submit-draft-btn[disabled] {
+  opacity: 0.6;
+}
+
 .submit-btn {
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
   border-radius: 20rpx;
   height: 88rpx;
   line-height: 88rpx;
@@ -1841,6 +2102,7 @@ export default {
 @media (prefers-reduced-motion: reduce) {
   .publish-topbar,
   .publish-card,
+  .submit-draft-btn,
   .submit-btn,
   .submit-tip,
   .upload-icon,
@@ -1853,6 +2115,7 @@ export default {
 
   .publish-topbar,
   .publish-card,
+  .submit-draft-btn,
   .submit-btn,
   .submit-tip {
     opacity: 1;
