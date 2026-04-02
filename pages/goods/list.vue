@@ -24,13 +24,14 @@
           </view>
         </view>
 
-        <view class="campus-bar" @click="handleCampusEntry">
-          <view class="campus-copy">
-            <view class="campus-name">{{ currentCampusName }}</view>
-            <view class="campus-tip">{{ campusTip }}</view>
-          </view>
-          <text class="bi bi-chevron-right icon-font campus-arrow"></text>
-        </view>
+        <CampusBindingWidget
+          variant="entry"
+          scene="browse"
+          tone="list"
+          :display-name="currentCampusName"
+          :description="campusTip"
+          @updated="handleCampusUpdated"
+        />
 
         <scroll-view scroll-x class="sort-scroll" show-scrollbar="false">
           <view class="sort-row">
@@ -124,19 +125,16 @@
 </template>
 
 <script>
-import { bindCampusByLocation, bindCampusManual, resolveCampusByLocation } from '../../api/auth'
 import { getGoodsList } from '../../api/goods'
+import CampusBindingWidget from '../../components/CampusBindingWidget.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import ProductCard from '../../components/ProductCard.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
-  chooseCampusOption,
   getCampusDisplayName,
   hasBoundCampus,
-  requestCampusLocation,
-  resolveCampusName,
-  syncCampusProfile
+  resolveCampusName
 } from '../../utils/campus'
 import {
   filterGoodsList,
@@ -148,6 +146,7 @@ import { syncThemePage } from '../../utils/theme'
 
 export default {
   components: {
+    CampusBindingWidget,
     EmptyState,
     ProductCard
   },
@@ -285,122 +284,9 @@ export default {
       this.persistQuery()
       this.fetchList()
     },
-    async handleCampusEntry() {
+    handleCampusUpdated() {
       this.syncCampusState()
-      if (!this.isLoggedInValue) {
-        uni.showActionSheet({
-          itemList: ['定位识别浏览校区', '手动选择浏览校区', '前往登录绑定账号校区'],
-          success: async ({ tapIndex }) => {
-            if (tapIndex === 0) {
-              await this.resolveGuestCampusByLocation()
-              return
-            }
-            if (tapIndex === 1) {
-              await this.bindCampusByManualSelection()
-              return
-            }
-            uni.navigateTo({ url: '/pages/user/login' })
-          }
-        })
-        return
-      }
-
-      uni.showActionSheet({
-        itemList: ['定位绑定当前校区', '手动切换校区'],
-        success: ({ tapIndex }) => {
-          if (tapIndex === 0) {
-            this.bindCampusByCurrentLocation()
-            return
-          }
-          this.bindCampusByManualSelection()
-        }
-      })
-    },
-    async bindCampusByManualSelection() {
-      const selectedCampus = await chooseCampusOption()
-      if (!selectedCampus) {
-        return
-      }
-      if (!this.authStore.sync().isLoggedIn()) {
-        this.goodsStore.setPreferredCampusCode(selectedCampus.code)
-        this.syncCampusState()
-        this.fetchList()
-        uni.showToast({ title: '浏览校区已更新', icon: 'success' })
-        return
-      }
-      uni.showLoading({ title: '校区切换中', mask: true })
-      try {
-        const res = await bindCampusManual({ campusCode: selectedCampus.code })
-        if (!res || res.code !== 0 || !res.data) {
-          throw new Error((res && res.message) || '校区切换失败')
-        }
-        syncCampusProfile(res.data)
-        this.syncCampusState()
-        this.fetchList()
-        uni.showToast({ title: '校区已更新', icon: 'success' })
-      } catch (error) {
-        uni.showToast({ title: error && error.message ? error.message : '校区切换失败', icon: 'none' })
-      } finally {
-        uni.hideLoading()
-      }
-    },
-    async bindCampusByCurrentLocation() {
-      try {
-        const location = await requestCampusLocation()
-        uni.showLoading({ title: '定位绑定中', mask: true })
-        const res = await bindCampusByLocation(location)
-        if (!res || res.code !== 0 || !res.data) {
-          throw new Error((res && res.message) || '定位绑定失败')
-        }
-        syncCampusProfile(res.data)
-        this.syncCampusState()
-        this.fetchList()
-        uni.showToast({ title: '校区已更新', icon: 'success' })
-      } catch (error) {
-        uni.hideLoading()
-        uni.showModal({
-          title: '定位失败',
-          content: (error && error.message) || '无法识别当前位置，请手动选择校区',
-          confirmText: '手动选择',
-          cancelText: '稍后再说',
-          success: ({ confirm }) => {
-            if (confirm) {
-              this.bindCampusByManualSelection()
-            }
-          }
-        })
-        return
-      }
-      uni.hideLoading()
-    },
-    async resolveGuestCampusByLocation() {
-      try {
-        const location = await requestCampusLocation()
-        uni.showLoading({ title: '定位识别中', mask: true })
-        const res = await resolveCampusByLocation(location)
-        if (!res || res.code !== 0 || !res.data || !res.data.campusCode) {
-          throw new Error((res && res.message) || '定位识别失败')
-        }
-        this.goodsStore.setPreferredCampusCode(res.data.campusCode)
-        this.syncCampusState()
-        this.fetchList()
-        uni.showToast({ title: '浏览校区已更新', icon: 'success' })
-      } catch (error) {
-        uni.hideLoading()
-        uni.showModal({
-          title: '定位失败',
-          content: (error && error.message) || '无法识别当前位置，请手动选择校区',
-          confirmText: '手动选择',
-          cancelText: '稍后再说',
-          success: ({ confirm }) => {
-            if (confirm) {
-              this.bindCampusByManualSelection()
-            }
-          }
-        })
-        return
-      }
-      uni.hideLoading()
+      this.fetchList()
     },
     toggleCondition(label) {
       if (this.selectedConditions.includes(label)) {
@@ -462,42 +348,6 @@ export default {
 .list-topbar {
   margin-bottom: 20rpx;
   padding: 8rpx 0;
-}
-
-.campus-bar {
-  margin-bottom: 18rpx;
-  padding: 20rpx 22rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1rpx solid rgba(216, 209, 196, 0.9);
-  box-shadow: 0 12rpx 24rpx rgba(39, 35, 30, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.campus-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.campus-name {
-  font-size: 27rpx;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.campus-tip {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  line-height: 1.6;
-  color: #8f8679;
-}
-
-.campus-arrow {
-  color: #a9a194;
-  font-size: 24rpx;
 }
 
 .list-back-btn .icon-font {

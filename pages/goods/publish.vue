@@ -115,14 +115,19 @@
 
         <view class="field-group">
           <view class="field-label">当前发布校区</view>
-          <view class="campus-readonly" :class="{ empty: !publishCampusName }">
-            <view class="campus-readonly-name">{{ publishCampusName || '暂未绑定校区' }}</view>
-            <view class="campus-readonly-tip">{{ publishCampusTip }}</view>
-          </view>
-          <view v-if="showCampusBindingActions" class="campus-action-row">
-            <button class="campus-bind-btn secondary" @click="handleCampusManualAction">手动选择</button>
-            <button class="campus-bind-btn primary" @click="handleCampusLocationAction">定位绑定</button>
-          </view>
+          <CampusBindingWidget
+            ref="publishCampusBinding"
+            variant="readonly"
+            scene="account"
+            tone="publish"
+            :display-name="publishCampusName || '暂未绑定校区'"
+            :description="publishCampusTip"
+            :empty="!publishCampusName"
+            :show-actions="showCampusBindingActions"
+            secondary-action-text="手动选择"
+            primary-action-text="定位绑定"
+            @updated="handleCampusUpdated"
+          />
         </view>
       </view>
 
@@ -180,7 +185,6 @@
 </template>
 
 <script>
-import { bindCampusByLocation, bindCampusManual } from '../../api/auth'
 import {
   createGoods,
   createGoodsDraft,
@@ -194,12 +198,10 @@ import {
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
-  chooseCampusOption,
   getCampusDisplayName,
-  hasBoundCampus,
-  requestCampusLocation,
-  syncCampusProfile
+  hasBoundCampus
 } from '../../utils/campus'
+import CampusBindingWidget from '../../components/CampusBindingWidget.vue'
 import {
   getConditionOptions,
   getDefaultCategoryList,
@@ -237,6 +239,7 @@ function clampConditionLevel(value) {
 
 export default {
   components: {
+    CampusBindingWidget,
     GoodsAiValuationPanel,
     ImagePreviewer
   },
@@ -476,59 +479,14 @@ export default {
         })
       })
     },
-    async handleCampusManualAction() {
-      if (!this.ensureLoggedIn()) {
-        return
-      }
-      const selectedCampus = await chooseCampusOption()
-      if (!selectedCampus) {
-        return
-      }
-      uni.showLoading({ title: '校区切换中', mask: true })
-      try {
-        const res = await bindCampusManual({ campusCode: selectedCampus.code })
-        if (!res || res.code !== 0 || !res.data) {
-          throw new Error((res && res.message) || '校区切换失败')
-        }
-        syncCampusProfile(res.data)
-        this.syncCampusState()
-        uni.showToast({ title: '校区已更新', icon: 'success' })
-      } catch (error) {
-        uni.showToast({ title: error && error.message ? error.message : '校区切换失败', icon: 'none' })
-      } finally {
-        uni.hideLoading()
-      }
+    handleCampusUpdated() {
+      this.syncCampusState()
     },
-    async handleCampusLocationAction() {
-      if (!this.ensureLoggedIn()) {
-        return
+    triggerCampusManualBinding() {
+      const bindingRef = this.$refs.publishCampusBinding
+      if (bindingRef && typeof bindingRef.triggerManualAction === 'function') {
+        bindingRef.triggerManualAction()
       }
-      try {
-        const location = await requestCampusLocation()
-        uni.showLoading({ title: '定位绑定中', mask: true })
-        const res = await bindCampusByLocation(location)
-        if (!res || res.code !== 0 || !res.data) {
-          throw new Error((res && res.message) || '定位绑定失败')
-        }
-        syncCampusProfile(res.data)
-        this.syncCampusState()
-        uni.showToast({ title: '校区已更新', icon: 'success' })
-      } catch (error) {
-        uni.hideLoading()
-        uni.showModal({
-          title: '定位失败',
-          content: (error && error.message) || '无法识别当前位置，请手动选择校区',
-          confirmText: '手动选择',
-          cancelText: '稍后再说',
-          success: ({ confirm }) => {
-            if (confirm) {
-              this.handleCampusManualAction()
-            }
-          }
-        })
-        return
-      }
-      uni.hideLoading()
     },
     showLeaveActionSheet() {
       return new Promise((resolve) => {
@@ -905,7 +863,7 @@ export default {
           cancelText: '稍后再说',
           success: ({ confirm }) => {
             if (confirm) {
-              this.handleCampusManualAction()
+              this.triggerCampusManualBinding()
             }
           }
         })
@@ -1237,62 +1195,6 @@ export default {
   text-align: right;
   font-size: 21rpx;
   color: var(--publish-muted-light);
-}
-
-.campus-readonly {
-  padding: 20rpx 22rpx;
-  border-radius: 20rpx;
-  border: 1rpx solid var(--publish-border);
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.campus-readonly.empty {
-  border-style: dashed;
-}
-
-.campus-readonly-name {
-  font-size: 27rpx;
-  font-weight: 600;
-  line-height: 1.5;
-  color: var(--campus-text);
-}
-
-.campus-readonly-tip {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  line-height: 1.7;
-  color: var(--publish-muted);
-}
-
-.campus-action-row {
-  display: flex;
-  gap: 16rpx;
-  margin-top: 18rpx;
-}
-
-.campus-bind-btn {
-  flex: 1;
-  min-width: 0;
-  height: 74rpx;
-  line-height: 74rpx;
-  border-radius: 18rpx;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.campus-bind-btn::after {
-  border: none;
-}
-
-.campus-bind-btn.secondary {
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--publish-accent-strong);
-  border: 1rpx solid var(--publish-border);
-}
-
-.campus-bind-btn.primary {
-  background: var(--publish-accent-strong);
-  color: #ffffff;
 }
 
 .select-field {
