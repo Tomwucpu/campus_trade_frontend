@@ -31,7 +31,7 @@
       </view>
     </template>
 
-    <view v-if="showActions" class="campus-binding__actions">
+    <view v-if="canShowActions" class="campus-binding__actions">
       <button class="campus-binding__action campus-binding__action--secondary" @click="handleSecondaryAction">
         {{ secondaryActionText }}
       </button>
@@ -54,14 +54,13 @@ import {
 } from '../utils/campus'
 
 const LOGIN_PAGE_URL = '/pages/user/login'
-const GUEST_ACTION_ITEMS = Object.freeze([
-  '定位识别浏览校区',
-  '手动选择浏览校区',
-  '前往登录绑定账号校区'
+const PREFERENCE_ACTION_ITEMS = Object.freeze([
+  '定位识别校区',
+  '手动选择校区'
 ])
-const ACCOUNT_ACTION_ITEMS = Object.freeze([
-  '定位绑定当前校区',
-  '手动切换校区'
+const BINDING_ACTION_ITEMS = Object.freeze([
+  '定位绑定校区',
+  '手动绑定校区'
 ])
 const ARROW_COLOR_MAP = Object.freeze({
   home: '#8a8f98',
@@ -80,9 +79,9 @@ export default {
       type: String,
       default: 'entry'
     },
-    scene: {
+    mode: {
       type: String,
-      default: 'account'
+      default: 'binding'
     },
     tone: {
       type: String,
@@ -139,6 +138,15 @@ export default {
     variantClass() {
       return `campus-binding--${this.variant}`
     },
+    isPreferenceMode() {
+      return this.mode === 'preference'
+    },
+    isReadonlyMode() {
+      return this.mode === 'readonly'
+    },
+    canShowActions() {
+      return this.showActions && !this.isReadonlyMode
+    },
     arrowColor() {
       return ARROW_COLOR_MAP[this.tone] || ARROW_COLOR_MAP.home
     }
@@ -150,6 +158,7 @@ export default {
     emitUpdated(type, payload = {}) {
       this.$emit('updated', {
         type,
+        mode: this.mode,
         ...payload
       })
     },
@@ -160,23 +169,32 @@ export default {
       return this.handleEntryClick()
     },
     triggerManualAction() {
-      if (this.scene === 'browse') {
-        return this.handleBrowseManualAction()
-      }
-      return this.handleAccountManualAction()
-    },
-    triggerLocationAction() {
-      if (this.scene === 'browse') {
-        return this.handleBrowseLocationAction()
-      }
-      return this.handleAccountLocationAction()
-    },
-    handleEntryClick() {
-      if (this.scene === 'browse') {
-        this.openBrowseActionSheet()
+      if (this.isReadonlyMode) {
         return
       }
-      this.openAccountActionSheet()
+      if (this.isPreferenceMode) {
+        return this.handlePreferenceManualAction()
+      }
+      return this.handleBindingManualAction()
+    },
+    triggerLocationAction() {
+      if (this.isReadonlyMode) {
+        return
+      }
+      if (this.isPreferenceMode) {
+        return this.handlePreferenceLocationAction()
+      }
+      return this.handleBindingLocationAction()
+    },
+    handleEntryClick() {
+      if (this.isReadonlyMode) {
+        return
+      }
+      if (this.isPreferenceMode) {
+        this.openPreferenceActionSheet()
+        return
+      }
+      this.openBindingActionSheet()
     },
     handleSecondaryAction() {
       this.triggerManualAction()
@@ -184,58 +202,48 @@ export default {
     handlePrimaryAction() {
       this.triggerLocationAction()
     },
-    openBrowseActionSheet() {
-      if (!this.isLoggedIn()) {
-        uni.showActionSheet({
-          itemList: GUEST_ACTION_ITEMS.slice(),
-          success: async ({ tapIndex }) => {
-            if (tapIndex === 0) {
-              await this.resolveGuestCampusByLocation()
-              return
-            }
-            if (tapIndex === 1) {
-              await this.handleBrowseManualAction()
-              return
-            }
-            this.navigateToLogin()
-          }
-        })
-        return
-      }
-
-      this.openAccountActionSheet()
-    },
-    openAccountActionSheet() {
+    openPreferenceActionSheet() {
       uni.showActionSheet({
-        itemList: ACCOUNT_ACTION_ITEMS.slice(),
-        success: ({ tapIndex }) => {
+        itemList: PREFERENCE_ACTION_ITEMS.slice(),
+        success: async ({ tapIndex }) => {
           if (tapIndex === 0) {
-            this.handleAccountLocationAction()
+            await this.handlePreferenceLocationAction()
             return
           }
-          this.handleAccountManualAction()
+          await this.handlePreferenceManualAction()
         }
       })
     },
-    async handleBrowseManualAction() {
-      if (this.isLoggedIn()) {
-        await this.handleAccountManualAction()
+    openBindingActionSheet() {
+      if (!this.isLoggedIn()) {
+        this.navigateToLogin()
         return
       }
-
+      uni.showActionSheet({
+        itemList: BINDING_ACTION_ITEMS.slice(),
+        success: ({ tapIndex }) => {
+          if (tapIndex === 0) {
+            this.handleBindingLocationAction()
+            return
+          }
+          this.handleBindingManualAction()
+        }
+      })
+    },
+    async handlePreferenceManualAction() {
       const selectedCampus = await chooseCampusOption()
       if (!selectedCampus) {
         return
       }
 
       this.goodsStore.setPreferredCampusCode(selectedCampus.code)
-      this.emitUpdated('guest-manual', {
+      this.emitUpdated('preference-manual', {
         campusCode: selectedCampus.code,
         campusName: selectedCampus.name || ''
       })
-      uni.showToast({ title: '浏览校区已更新', icon: 'success' })
+      uni.showToast({ title: '校区已更新', icon: 'success' })
     },
-    async handleAccountManualAction() {
+    async handleBindingManualAction() {
       if (!this.isLoggedIn()) {
         this.navigateToLogin()
         return
@@ -246,36 +254,31 @@ export default {
         return
       }
 
-      uni.showLoading({ title: '校区切换中', mask: true })
+      uni.showLoading({ title: '校区绑定中', mask: true })
       try {
         const res = await bindCampusManual({ campusCode: selectedCampus.code })
         if (!res || res.code !== 0 || !res.data) {
-          throw new Error((res && res.message) || '校区切换失败')
+          throw new Error((res && res.message) || '校区绑定失败')
         }
         const profile = syncCampusProfile(res.data)
-        this.emitUpdated('account-manual', {
-          campusCode: profile.campusCode || selectedCampus.code,
+        const campusCode = profile.campusCode || selectedCampus.code || ''
+        this.goodsStore.setPreferredCampusCode(campusCode)
+        this.emitUpdated('binding-manual', {
+          campusCode,
           campusName: profile.campusName || selectedCampus.name || '',
           profile
         })
-        uni.showToast({ title: '校区已更新', icon: 'success' })
+        uni.showToast({ title: '账号校区已更新', icon: 'success' })
       } catch (error) {
         uni.showToast({
-          title: error && error.message ? error.message : '校区切换失败',
+          title: error && error.message ? error.message : '校区绑定失败',
           icon: 'none'
         })
       } finally {
         uni.hideLoading()
       }
     },
-    async handleBrowseLocationAction() {
-      if (this.isLoggedIn()) {
-        await this.handleAccountLocationAction()
-        return
-      }
-      await this.resolveGuestCampusByLocation()
-    },
-    async handleAccountLocationAction() {
+    async handleBindingLocationAction() {
       if (!this.isLoggedIn()) {
         this.navigateToLogin()
         return
@@ -291,18 +294,20 @@ export default {
           throw new Error((res && res.message) || '定位绑定失败')
         }
         const profile = syncCampusProfile(res.data)
-        this.emitUpdated('account-location', {
-          campusCode: profile.campusCode || '',
+        const campusCode = profile.campusCode || ''
+        this.goodsStore.setPreferredCampusCode(campusCode)
+        this.emitUpdated('binding-location', {
+          campusCode,
           campusName: profile.campusName || '',
           profile
         })
-        uni.showToast({ title: '校区已更新', icon: 'success' })
+        uni.showToast({ title: '账号校区已更新', icon: 'success' })
       } catch (error) {
         if (loadingShown) {
           uni.hideLoading()
         }
         this.showLocationFallback(error, () => {
-          this.handleAccountManualAction()
+          this.handleBindingManualAction()
         })
         return
       }
@@ -311,7 +316,7 @@ export default {
         uni.hideLoading()
       }
     },
-    async resolveGuestCampusByLocation() {
+    async handlePreferenceLocationAction() {
       let loadingShown = false
       try {
         const location = await requestCampusLocation()
@@ -322,17 +327,17 @@ export default {
           throw new Error((res && res.message) || '定位识别失败')
         }
         this.goodsStore.setPreferredCampusCode(res.data.campusCode)
-        this.emitUpdated('guest-location', {
+        this.emitUpdated('preference-location', {
           campusCode: res.data.campusCode,
           campusName: res.data.campusName || ''
         })
-        uni.showToast({ title: '浏览校区已更新', icon: 'success' })
+        uni.showToast({ title: '校区已更新', icon: 'success' })
       } catch (error) {
         if (loadingShown) {
           uni.hideLoading()
         }
         this.showLocationFallback(error, () => {
-          this.handleBrowseManualAction()
+          this.handlePreferenceManualAction()
         })
         return
       }

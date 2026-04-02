@@ -40,7 +40,7 @@
 
       <CampusBindingWidget
         variant="card"
-        scene="account"
+        mode="binding"
         tone="profile"
         title="当前校区"
         :display-name="campusDisplayName"
@@ -207,10 +207,10 @@ export default {
     },
     campusSummaryText() {
       if (!this.isLoggedIn) {
-        return '登录后可通过定位绑定或手动切换校区，首页和列表会优先展示对应商品。'
+        return '登录后可在这里绑定账号校区。'
       }
       if (!hasBoundCampus(this.profile)) {
-        return '你还没有绑定校区，正式发布商品前需要先完成校区绑定。'
+        return '你还没有绑定校区，正式发布商品前需要先在这里完成绑定。'
       }
       const sourceLabel = resolveCampusSourceLabel(this.profile.campusBindSource)
       const boundAtText = this.profile.campusBoundAt ? formatDateTime(this.profile.campusBoundAt) : ''

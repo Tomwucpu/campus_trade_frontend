@@ -30,6 +30,22 @@ export function hasBoundCampus(profile = {}) {
   return Boolean(profile && profile.campusCode)
 }
 
+export function resolvePreferredCampusCode(preferredCampusCode = '', profile = {}) {
+  const localCampusCode = `${preferredCampusCode || ''}`.trim()
+  if (resolveCampusName(localCampusCode)) {
+    return localCampusCode
+  }
+  return `${(profile && profile.campusCode) || ''}`.trim()
+}
+
+export function resolvePreferredCampusDisplayName(preferredCampusCode = '', profile = {}, fallback = '手动选择校区') {
+  const localCampusName = resolveCampusName(preferredCampusCode)
+  if (localCampusName) {
+    return localCampusName
+  }
+  return getCampusDisplayName(profile, fallback)
+}
+
 export function getCampusDisplayName(profile = {}, fallback = '暂未绑定校区') {
   if (!profile || typeof profile !== 'object') {
     return fallback

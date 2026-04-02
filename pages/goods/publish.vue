@@ -116,17 +116,12 @@
         <view class="field-group">
           <view class="field-label">当前发布校区</view>
           <CampusBindingWidget
-            ref="publishCampusBinding"
             variant="readonly"
-            scene="account"
+            mode="readonly"
             tone="publish"
             :display-name="publishCampusName || '暂未绑定校区'"
             :description="publishCampusTip"
             :empty="!publishCampusName"
-            :show-actions="showCampusBindingActions"
-            secondary-action-text="手动选择"
-            primary-action-text="定位绑定"
-            @updated="handleCampusUpdated"
           />
         </view>
       </view>
@@ -336,16 +331,13 @@ export default {
         return '已发布商品编辑时不会改动原有校区标签。'
       }
       if (!this.hasCampusBound) {
-        return '正式发布前需要先绑定校区，草稿保存不会冻结校区标签。'
+        return '当前未绑定账号校区，请先前往个人页完成绑定，草稿保存不受影响。'
       }
-      return '正式发布时会按当前账号校区写入商品标签。'
-    },
-    showCampusBindingActions() {
-      return !this.isPublishedEditMode
+      return '正式发布时会按当前账号绑定校区写入商品标签。'
     },
     submitTip() {
       if (!this.isPublishedEditMode && !this.hasCampusBound) {
-        return '请先绑定校区，再将商品正式发布到对应校区流量池。'
+        return '请先前往个人页绑定账号校区，再将商品正式发布到对应校区流量池。'
       }
       if (this.isPublishedEditMode && this.editWillAutoCancelPendingOrder) {
         return '本次保存会自动取消当前商品的待付款订单，保存后商品会恢复在售状态。'
@@ -479,14 +471,8 @@ export default {
         })
       })
     },
-    handleCampusUpdated() {
-      this.syncCampusState()
-    },
-    triggerCampusManualBinding() {
-      const bindingRef = this.$refs.publishCampusBinding
-      if (bindingRef && typeof bindingRef.triggerManualAction === 'function') {
-        bindingRef.triggerManualAction()
-      }
+    goToProfileForCampusBinding() {
+      uni.reLaunch({ url: '/pages/user/profile' })
     },
     showLeaveActionSheet() {
       return new Promise((resolve) => {
@@ -858,12 +844,12 @@ export default {
       if (!this.isPublishedEditMode && !this.hasCampusBound) {
         uni.showModal({
           title: '请先绑定校区',
-          content: '正式发布商品前需要先绑定校区，你可以先保存草稿，或立即完成定位绑定/手动选择。',
-          confirmText: '手动选择',
-          cancelText: '稍后再说',
+          content: '正式发布商品前需要先在个人页绑定账号校区，确认后将跳转到个人页。',
+          confirmText: '去个人页',
+          cancelText: '先留在这里',
           success: ({ confirm }) => {
             if (confirm) {
-              this.triggerCampusManualBinding()
+              this.goToProfileForCampusBinding()
             }
           }
         })

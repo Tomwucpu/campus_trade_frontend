@@ -30,7 +30,7 @@
 
       <CampusBindingWidget
         variant="entry"
-        scene="browse"
+        mode="preference"
         tone="home"
         :display-name="currentCampusName"
         :description="campusStatusText"
@@ -160,9 +160,9 @@ import ProductCard from '../../components/ProductCard.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
-  getCampusDisplayName,
   hasBoundCampus,
-  resolveCampusName
+  resolvePreferredCampusCode,
+  resolvePreferredCampusDisplayName
 } from '../../utils/campus'
 import {
   normalizeGoodsItem,
@@ -239,20 +239,19 @@ export default {
   },
   computed: {
     preferredCampusCode() {
-      const authCampusCode = this.campusProfile.campusCode || ''
-      return authCampusCode || this.guestPreferredCampusCode || ''
+      return resolvePreferredCampusCode(this.guestPreferredCampusCode, this.campusProfile)
     },
     currentCampusName() {
-      if (!this.isLoggedInValue) {
-        return resolveCampusName(this.guestPreferredCampusCode) || '手动选择校区'
-      }
-      return getCampusDisplayName(this.campusProfile)
+      return resolvePreferredCampusDisplayName(this.guestPreferredCampusCode, this.campusProfile, '手动选择校区')
     },
     campusStatusText() {
-      if (!this.isLoggedInValue) {
-        return this.preferredCampusCode ? '游客浏览将优先展示所选校区商品' : '可先手动选择浏览校区，登录后可绑定账号校区'
+      if (resolvePreferredCampusCode(this.guestPreferredCampusCode)) {
+        return '当前按本地优先校区展示商品，账号绑定校区不会被改动'
       }
-      return hasBoundCampus(this.campusProfile) ? '当前商品流已按校区优先展示' : '点击完成定位绑定或手动切换'
+      if (hasBoundCampus(this.campusProfile)) {
+        return '当前未设置本地优先校区，默认按账号绑定校区展示'
+      }
+      return '可先手动选择优先展示校区，登录后再去个人页绑定账号校区'
     },
     homeGoods() {
       return buildHomeGoods(this.goodsList, this.preferredCampusCode)
