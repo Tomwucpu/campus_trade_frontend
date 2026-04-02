@@ -69,7 +69,7 @@
           <view class="section-title-wrap">
             <view class="section-marker"></view>
             <view>
-              <view class="section-title">编辑精选</view>
+              <view class="section-title">精选</view>
               <view class="section-subtitle">基于最新上架内容，为你先挑一轮值得看的好物。</view>
             </view>
           </view>

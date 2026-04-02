@@ -273,17 +273,9 @@ import {
 import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { syncThemePage } from '../../utils/theme'
 
-const DRAFT_KEY = 'goods_publish_draft'
 const UPLOAD_COMPRESS_THRESHOLD_BYTES = 1024 * 1024
 const UPLOAD_MAX_LONG_EDGE = 1600
-
-function normalizeStorageKeyPart(value) {
-  const text = String(value == null ? '' : value).trim()
-  if (!text) {
-    return 'unknown'
-  }
-  return text.replace(/[^a-zA-Z0-9_-]/g, '_')
-}
+const PUBLISH_DRAFT_KEY_PREFIX = 'goods_publish_draft'
 
 function createDefaultForm() {
   return {
@@ -294,14 +286,6 @@ function createDefaultForm() {
     originalPrice: '',
     description: '',
     images: []
-  }
-}
-
-function createDefaultDraft() {
-  return {
-    form: createDefaultForm(),
-    aiValuation: null,
-    categoryTouched: false
   }
 }
 
@@ -337,7 +321,6 @@ export default {
       previewVisible: false,
       previewIndex: 0,
       localImageMetaMap: {},
-      activeDraftKey: '',
       aiLoading: false,
       applyingSuggestion: false,
       submitting: false,
@@ -448,6 +431,7 @@ export default {
   },
   onLoad(options) {
     syncThemePage(this)
+    this.clearLegacyDraftCache()
     this.id = (options && options.id) || ''
     this.isEdit = Boolean(this.id)
     if (this.isEdit && !this.authStore.sync().isLoggedIn()) {
@@ -457,16 +441,14 @@ export default {
       }, 260)
       return
     }
-    this.syncDraftContext({ restore: true, force: true })
     this.fetchCategories()
     if (this.isEdit) {
-      this.fetchDetail(!this.form.title)
+      this.fetchDetail(true)
     }
   },
   onShow() {
     syncThemePage(this)
-    const draftContextChanged = this.syncDraftContext({ restore: true })
-    if (draftContextChanged && this.isEdit && !this.form.title) {
+    if (this.isEdit && this.authStore.sync().isLoggedIn() && !this.form.title) {
       this.fetchDetail(true)
     }
   },
@@ -485,68 +467,19 @@ export default {
       }
       return amount.toFixed(2)
     },
-    resolveDraftOwnerKey() {
-      const store = this.authStore.sync()
-      const userId = store.getUserId()
-      if (userId || userId === 0) {
-        return `user_${normalizeStorageKeyPart(userId)}`
-      }
-      if (store.token) {
-        return `token_${normalizeStorageKeyPart(String(store.token).slice(-24))}`
-      }
-      return 'guest'
-    },
-    resolveDraftKey() {
-      const ownerKey = this.resolveDraftOwnerKey()
-      if (this.isEdit && this.id) {
-        return `${DRAFT_KEY}_${ownerKey}_${normalizeStorageKeyPart(this.id)}`
-      }
-      return `${DRAFT_KEY}_${ownerKey}`
-    },
-    syncDraftContext({ restore = false, force = false } = {}) {
-      const nextDraftKey = this.resolveDraftKey()
-      if (!force && this.activeDraftKey === nextDraftKey) {
-        return false
-      }
-      this.activeDraftKey = nextDraftKey
-      if (restore) {
-        this.restoreDraft(nextDraftKey)
-      }
-      return true
-    },
-    buildDraftPayload() {
-      return {
-        form: this.form,
-        aiValuation: this.aiValuation,
-        categoryTouched: this.categoryTouched
-      }
+    clearLegacyDraftCache() {
+      try {
+        const info = uni.getStorageInfoSync()
+        const keys = Array.isArray(info && info.keys) ? info.keys : []
+        keys
+          .filter((key) => String(key || '').startsWith(PUBLISH_DRAFT_KEY_PREFIX))
+          .forEach((key) => {
+            uni.removeStorageSync(key)
+          })
+      } catch (error) {}
     },
     saveDraft() {
-      const draftKey = this.activeDraftKey || this.resolveDraftKey()
-      this.activeDraftKey = draftKey
-      uni.setStorageSync(draftKey, this.buildDraftPayload())
-    },
-    restoreDraft(draftKey = '') {
-      const currentDraftKey = draftKey || this.activeDraftKey || this.resolveDraftKey()
-      this.activeDraftKey = currentDraftKey
-      const draft = uni.getStorageSync(currentDraftKey)
-      if (draft && typeof draft === 'object' && draft.form) {
-        const merged = { ...createDefaultDraft(), ...draft }
-        this.form = { ...createDefaultForm(), ...merged.form }
-        this.aiValuation = merged.aiValuation || null
-        this.aiPanelVisible = false
-        this.aiErrorMessage = ''
-        this.categoryTouched = Boolean(merged.categoryTouched)
-        this.localImageMetaMap = {}
-        return
-      }
-
-      this.form = draft && typeof draft === 'object' ? { ...createDefaultForm(), ...draft } : createDefaultForm()
-      this.aiValuation = null
-      this.aiPanelVisible = false
-      this.aiErrorMessage = ''
-      this.categoryTouched = false
-      this.localImageMetaMap = {}
+      // Draft persistence removed: publish content is no longer cached locally.
     },
     ensureLoggedIn() {
       if (this.authStore.sync().isLoggedIn()) {
@@ -999,7 +932,6 @@ export default {
 
         if (res && res.code === 0 && res.data) {
           const targetId = res.data.id || this.id
-          uni.removeStorageSync(this.activeDraftKey || this.resolveDraftKey())
           this.goodsStore.setLastViewedId(targetId)
           this.form = createDefaultForm()
           this.aiValuation = null
