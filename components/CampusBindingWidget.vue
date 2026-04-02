@@ -7,7 +7,7 @@
   >
     <view class="campus-binding__copy">
       <view class="campus-binding__name">{{ displayName }}</view>
-      <view class="campus-binding__description">{{ description }}</view>
+      <view v-if="description" class="campus-binding__description">{{ description }}</view>
     </view>
     <uni-icons class="campus-binding__arrow" type="right" :size="14" :color="arrowColor"></uni-icons>
   </view>
@@ -21,13 +21,13 @@
         </view>
         <view v-if="badgeText" class="campus-binding__badge">{{ badgeText }}</view>
       </view>
-      <view class="campus-binding__description campus-binding__description--card">{{ description }}</view>
+      <view v-if="description" class="campus-binding__description campus-binding__description--card">{{ description }}</view>
     </template>
 
     <template v-else>
       <view class="campus-binding__readonly" :class="{ 'campus-binding__readonly--empty': empty }">
         <view class="campus-binding__name campus-binding__name--readonly">{{ displayName }}</view>
-        <view class="campus-binding__description campus-binding__description--readonly">{{ description }}</view>
+        <view v-if="description" class="campus-binding__description campus-binding__description--readonly">{{ description }}</view>
       </view>
     </template>
 

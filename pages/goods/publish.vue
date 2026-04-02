@@ -120,7 +120,6 @@
             mode="readonly"
             tone="publish"
             :display-name="publishCampusName || '暂未绑定校区'"
-            :description="publishCampusTip"
             :empty="!publishCampusName"
           />
         </view>
@@ -325,15 +324,6 @@ export default {
         return this.editCapability.campusName
       }
       return getCampusDisplayName(this.campusProfile, '')
-    },
-    publishCampusTip() {
-      if (this.isPublishedEditMode && this.editCapability && this.editCapability.campusName) {
-        return '已发布商品编辑时不会改动原有校区标签。'
-      }
-      if (!this.hasCampusBound) {
-        return '当前未绑定账号校区，请先前往个人页完成绑定，草稿保存不受影响。'
-      }
-      return '正式发布时会按当前账号绑定校区写入商品标签。'
     },
     submitTip() {
       if (!this.isPublishedEditMode && !this.hasCampusBound) {

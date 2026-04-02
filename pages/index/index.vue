@@ -33,7 +33,6 @@
         mode="preference"
         tone="home"
         :display-name="currentCampusName"
-        :description="campusStatusText"
         @updated="handleCampusUpdated"
       />
 
@@ -160,7 +159,6 @@ import ProductCard from '../../components/ProductCard.vue'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
 import {
-  hasBoundCampus,
   resolvePreferredCampusCode,
   resolvePreferredCampusDisplayName
 } from '../../utils/campus'
@@ -243,15 +241,6 @@ export default {
     },
     currentCampusName() {
       return resolvePreferredCampusDisplayName(this.guestPreferredCampusCode, this.campusProfile, '手动选择校区')
-    },
-    campusStatusText() {
-      if (resolvePreferredCampusCode(this.guestPreferredCampusCode)) {
-        return '当前按本地优先校区展示商品，账号绑定校区不会被改动'
-      }
-      if (hasBoundCampus(this.campusProfile)) {
-        return '当前未设置本地优先校区，默认按账号绑定校区展示'
-      }
-      return '可先手动选择优先展示校区，登录后再去个人页绑定账号校区'
     },
     homeGoods() {
       return buildHomeGoods(this.goodsList, this.preferredCampusCode)
