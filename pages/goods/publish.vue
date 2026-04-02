@@ -112,6 +112,18 @@
           />
           <view class="field-count">{{ form.description.length }}/500</view>
         </view>
+
+        <view class="field-group">
+          <view class="field-label">当前发布校区</view>
+          <view class="campus-readonly" :class="{ empty: !publishCampusName }">
+            <view class="campus-readonly-name">{{ publishCampusName || '暂未绑定校区' }}</view>
+            <view class="campus-readonly-tip">{{ publishCampusTip }}</view>
+          </view>
+          <view v-if="showCampusBindingActions" class="campus-action-row">
+            <button class="campus-bind-btn secondary" @click="handleCampusManualAction">手动选择</button>
+            <button class="campus-bind-btn primary" @click="handleCampusLocationAction">定位绑定</button>
+          </view>
+        </view>
       </view>
 
       <view class="submit-actions">
@@ -168,6 +180,7 @@
 </template>
 
 <script>
+import { bindCampusByLocation, bindCampusManual } from '../../api/auth'
 import {
   createGoods,
   createGoodsDraft,
@@ -180,6 +193,13 @@ import {
 } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
 import { useGoodsStore } from '../../store/goods'
+import {
+  chooseCampusOption,
+  getCampusDisplayName,
+  hasBoundCampus,
+  requestCampusLocation,
+  syncCampusProfile
+} from '../../utils/campus'
 import {
   getConditionOptions,
   getDefaultCategoryList,
@@ -229,6 +249,8 @@ export default {
       themeClass: 'theme-light',
       authStore: useAuthStore(),
       goodsStore: useGoodsStore(),
+      isLoggedInValue: false,
+      campusProfile: {},
       form: createDefaultForm(),
       aiResetVersion: 0,
       categoryTouched: false,
@@ -297,7 +319,31 @@ export default {
       }
       return '保存草稿'
     },
+    hasCampusBound() {
+      return hasBoundCampus(this.campusProfile)
+    },
+    publishCampusName() {
+      if (this.isPublishedEditMode && this.editCapability && this.editCapability.campusName) {
+        return this.editCapability.campusName
+      }
+      return getCampusDisplayName(this.campusProfile, '')
+    },
+    publishCampusTip() {
+      if (this.isPublishedEditMode && this.editCapability && this.editCapability.campusName) {
+        return '已发布商品编辑时不会改动原有校区标签。'
+      }
+      if (!this.hasCampusBound) {
+        return '正式发布前需要先绑定校区，草稿保存不会冻结校区标签。'
+      }
+      return '正式发布时会按当前账号校区写入商品标签。'
+    },
+    showCampusBindingActions() {
+      return !this.isPublishedEditMode
+    },
     submitTip() {
+      if (!this.isPublishedEditMode && !this.hasCampusBound) {
+        return '请先绑定校区，再将商品正式发布到对应校区流量池。'
+      }
       if (this.isPublishedEditMode && this.editWillAutoCancelPendingOrder) {
         return '本次保存会自动取消当前商品的待付款订单，保存后商品会恢复在售状态。'
       }
@@ -311,6 +357,7 @@ export default {
   },
   onLoad(options) {
     syncThemePage(this)
+    this.syncCampusState()
     this.id = (options && options.id) || ''
     this.isEdit = Boolean(this.id)
     this.mode = this.id ? MODE_EDIT : MODE_CREATE
@@ -330,6 +377,7 @@ export default {
   },
   onShow() {
     syncThemePage(this)
+    this.syncCampusState()
     if (this.isEdit && this.authStore.sync().isLoggedIn() && !this.detailLoaded) {
       this.fetchDetail(true)
     }
@@ -354,6 +402,11 @@ export default {
     return false
   },
   methods: {
+    syncCampusState() {
+      const authStore = this.authStore.sync()
+      this.isLoggedInValue = authStore.isLoggedIn()
+      this.campusProfile = { ...(authStore.profile || {}) }
+    },
     normalizeDecimalString(value) {
       const raw = `${value ?? ''}`.trim()
       if (!raw) {
@@ -403,7 +456,8 @@ export default {
       }
     },
     ensureLoggedIn() {
-      if (this.authStore.sync().isLoggedIn()) {
+      this.syncCampusState()
+      if (this.isLoggedInValue) {
         return true
       }
       uni.showToast({ title: '请先登录后再操作', icon: 'none' })
@@ -421,6 +475,60 @@ export default {
           fail: () => resolve(false)
         })
       })
+    },
+    async handleCampusManualAction() {
+      if (!this.ensureLoggedIn()) {
+        return
+      }
+      const selectedCampus = await chooseCampusOption()
+      if (!selectedCampus) {
+        return
+      }
+      uni.showLoading({ title: '校区切换中', mask: true })
+      try {
+        const res = await bindCampusManual({ campusCode: selectedCampus.code })
+        if (!res || res.code !== 0 || !res.data) {
+          throw new Error((res && res.message) || '校区切换失败')
+        }
+        syncCampusProfile(res.data)
+        this.syncCampusState()
+        uni.showToast({ title: '校区已更新', icon: 'success' })
+      } catch (error) {
+        uni.showToast({ title: error && error.message ? error.message : '校区切换失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
+    },
+    async handleCampusLocationAction() {
+      if (!this.ensureLoggedIn()) {
+        return
+      }
+      try {
+        const location = await requestCampusLocation()
+        uni.showLoading({ title: '定位绑定中', mask: true })
+        const res = await bindCampusByLocation(location)
+        if (!res || res.code !== 0 || !res.data) {
+          throw new Error((res && res.message) || '定位绑定失败')
+        }
+        syncCampusProfile(res.data)
+        this.syncCampusState()
+        uni.showToast({ title: '校区已更新', icon: 'success' })
+      } catch (error) {
+        uni.hideLoading()
+        uni.showModal({
+          title: '定位失败',
+          content: (error && error.message) || '无法识别当前位置，请手动选择校区',
+          confirmText: '手动选择',
+          cancelText: '稍后再说',
+          success: ({ confirm }) => {
+            if (confirm) {
+              this.handleCampusManualAction()
+            }
+          }
+        })
+        return
+      }
+      uni.hideLoading()
     },
     showLeaveActionSheet() {
       return new Promise((resolve) => {
@@ -789,6 +897,21 @@ export default {
         return
       }
 
+      if (!this.isPublishedEditMode && !this.hasCampusBound) {
+        uni.showModal({
+          title: '请先绑定校区',
+          content: '正式发布商品前需要先绑定校区，你可以先保存草稿，或立即完成定位绑定/手动选择。',
+          confirmText: '手动选择',
+          cancelText: '稍后再说',
+          success: ({ confirm }) => {
+            if (confirm) {
+              this.handleCampusManualAction()
+            }
+          }
+        })
+        return
+      }
+
       if (!this.form.title || !this.form.price || !this.form.description) {
         uni.showToast({ title: '请补全标题、价格和描述', icon: 'none' })
         return
@@ -1114,6 +1237,62 @@ export default {
   text-align: right;
   font-size: 21rpx;
   color: var(--publish-muted-light);
+}
+
+.campus-readonly {
+  padding: 20rpx 22rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid var(--publish-border);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.campus-readonly.empty {
+  border-style: dashed;
+}
+
+.campus-readonly-name {
+  font-size: 27rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--campus-text);
+}
+
+.campus-readonly-tip {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: var(--publish-muted);
+}
+
+.campus-action-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 18rpx;
+}
+
+.campus-bind-btn {
+  flex: 1;
+  min-width: 0;
+  height: 74rpx;
+  line-height: 74rpx;
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.campus-bind-btn::after {
+  border: none;
+}
+
+.campus-bind-btn.secondary {
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--publish-accent-strong);
+  border: 1rpx solid var(--publish-border);
+}
+
+.campus-bind-btn.primary {
+  background: var(--publish-accent-strong);
+  color: #ffffff;
 }
 
 .select-field {

@@ -14,6 +14,7 @@
       </view>
       <view class="product-meta">
         <view class="product-time">{{ goods.publishedAtText }}</view>
+        <view v-if="goods.campusName" class="product-campus">{{ goods.campusName }}</view>
         <view v-if="goods.sellerName" class="product-seller">{{ goods.sellerName }}</view>
       </view>
     </view>
@@ -110,10 +111,18 @@ export default {
 .product-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12rpx;
   font-size: 20rpx;
   color: #8e949d;
+}
+
+.product-campus {
+  max-width: 100%;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(240, 242, 245, 0.92);
+  color: #6c727b;
 }
 
 .product-seller {

@@ -48,7 +48,7 @@
           <view class="detail-meta">
             <view class="meta-item">发布时间 {{ detail.createdAtText }}</view>
             <view class="meta-item">{{ detail.categoryLabel }}</view>
-            <view v-if="detail.campusLocation" class="meta-item">{{ detail.campusLocation }}</view>
+            <view v-if="detail.campusName" class="meta-item">{{ detail.campusName }}</view>
           </view>
         </view>
 
@@ -161,13 +161,13 @@ export default {
       if (!this.hasDetail) {
         return false
       }
-      return [this.detail.sellerName, this.detail.sellerRating, this.detail.sellerStudentNo, this.detail.campusLocation].some(Boolean)
+      return [this.detail.sellerName, this.detail.sellerRating, this.detail.sellerStudentNo, this.detail.campusName].some(Boolean)
     },
     sellerSubtitle() {
       if (!this.hasDetail) {
         return ''
       }
-      return [this.detail.sellerStudentNo, this.detail.campusLocation].filter(Boolean).join(' · ')
+      return [this.detail.sellerStudentNo, this.detail.campusName].filter(Boolean).join(' · ')
     },
     favorite() {
       return this.favoriteState

@@ -7,7 +7,8 @@ const defaults = {
   maxPrice: '',
   quickFilter: 'all',
   feedTab: 'recommend',
-  lastViewedId: null
+  lastViewedId: null,
+  preferredCampusCode: ''
 }
 
 function readState() {
@@ -26,7 +27,8 @@ const goodsStore = {
       maxPrice: this.maxPrice,
       quickFilter: this.quickFilter,
       feedTab: this.feedTab,
-      lastViewedId: this.lastViewedId
+      lastViewedId: this.lastViewedId,
+      preferredCampusCode: this.preferredCampusCode
     })
   },
 
@@ -66,6 +68,11 @@ const goodsStore = {
     this.persist()
   },
 
+  setPreferredCampusCode(value) {
+    this.preferredCampusCode = value || ''
+    this.persist()
+  },
+
   applyListQuery({ keyword, quickFilter, categoryId, minPrice, maxPrice } = {}) {
     if (typeof keyword !== 'undefined') {
       this.keyword = (keyword || '').trim()
@@ -84,7 +91,10 @@ const goodsStore = {
   },
 
   resetFilters() {
-    Object.assign(this, defaults)
+    Object.assign(this, {
+      ...defaults,
+      preferredCampusCode: this.preferredCampusCode
+    })
     this.persist()
   }
 }

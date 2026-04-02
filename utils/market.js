@@ -286,7 +286,9 @@ export function normalizeGoodsItem(item = {}, index = 0) {
     masterImageUrl,
     gallery: resolveGoodsGallery(item, index),
     sellerName: item.sellerName || '',
-    campusLocation: item.campusLocation || '',
+    campusCode: item.campusCode || '',
+    campusName: item.campusName || item.campusLocation || '',
+    campusLocation: item.campusName || item.campusLocation || '',
     viewCount: Number(item.viewCount || item.glanceCount || 0),
     favoriteCount,
     status: item.status || 'ON_SALE',
@@ -363,18 +365,50 @@ export function normalizeOrderItem(item = {}, index = 0) {
   }
 }
 
-export function sortGoodsList(list = [], sortMode = 'latest') {
-  const items = list.slice()
+function resolveCampusPriority(item = {}, preferredCampusCode = '') {
+  const itemCampusCode = `${item.campusCode || ''}`.trim()
+  const viewerCampusCode = `${preferredCampusCode || ''}`.trim()
+  if (!viewerCampusCode) {
+    return 0
+  }
+  if (itemCampusCode && itemCampusCode === viewerCampusCode) {
+    return 0
+  }
+  if (!itemCampusCode) {
+    return 1
+  }
+  return 2
+}
+
+function compareGoodsWithinGroup(a = {}, b = {}, sortMode = 'latest') {
   if (sortMode === 'price-low') {
-    return items.sort((a, b) => Number(a.priceValue || a.price || 0) - Number(b.priceValue || b.price || 0))
+    return Number(a.priceValue || a.price || 0) - Number(b.priceValue || b.price || 0)
+      || Number(b.createdAtValue || 0) - Number(a.createdAtValue || 0)
   }
   if (sortMode === 'price-high') {
-    return items.sort((a, b) => Number(b.priceValue || b.price || 0) - Number(a.priceValue || a.price || 0))
+    return Number(b.priceValue || b.price || 0) - Number(a.priceValue || a.price || 0)
+      || Number(b.createdAtValue || 0) - Number(a.createdAtValue || 0)
   }
   if (sortMode === 'hot') {
-    return items.sort((a, b) => Number(b.viewCount || 0) - Number(a.viewCount || 0))
+    return Number(b.viewCount || 0) - Number(a.viewCount || 0)
+      || Number(b.createdAtValue || 0) - Number(a.createdAtValue || 0)
   }
-  return items.sort((a, b) => Number(b.createdAtValue || 0) - Number(a.createdAtValue || 0))
+  return Number(b.createdAtValue || 0) - Number(a.createdAtValue || 0)
+}
+
+export function sortGoodsList(list = [], sortMode = 'latest', preferredCampusCode = '') {
+  const items = list.slice()
+  return items.sort((a, b) => {
+    const campusDiff = resolveCampusPriority(a, preferredCampusCode) - resolveCampusPriority(b, preferredCampusCode)
+    if (campusDiff !== 0) {
+      return campusDiff
+    }
+    const sortDiff = compareGoodsWithinGroup(a, b, sortMode)
+    if (sortDiff !== 0) {
+      return sortDiff
+    }
+    return Number(b.id || 0) - Number(a.id || 0)
+  })
 }
 
 export function filterGoodsList(list = [], filters = {}) {
@@ -413,7 +447,7 @@ export function filterGoodsList(list = [], filters = {}) {
     return true
   })
 
-  return sortGoodsList(filtered, filters.sortMode || 'latest')
+  return sortGoodsList(filtered, filters.sortMode || 'latest', filters.preferredCampusCode || '')
 }
 
 export function getHomeCategories() {

@@ -38,6 +38,21 @@
         <text class="notice-text">{{ unreadSummaryText }}</text>
       </view>
 
+      <view class="campus-card">
+        <view class="campus-head">
+          <view>
+            <view class="campus-title">当前校区</view>
+            <view class="campus-name">{{ campusDisplayName }}</view>
+          </view>
+          <view class="campus-badge">{{ isLoggedIn ? '账号级设置' : '需登录' }}</view>
+        </view>
+        <view class="campus-meta">{{ campusSummaryText }}</view>
+        <view class="campus-actions">
+          <button class="campus-action secondary" @click="handleCampusManualAction">{{ isLoggedIn ? '手动切换' : '前往登录' }}</button>
+          <button class="campus-action primary" @click="handleCampusLocationAction">{{ isLoggedIn ? '定位绑定' : '先登录' }}</button>
+        </view>
+      </view>
+
       <view class="menu-group">
         <view class="menu-item" @click="go('/pages/goods/my')">
           <view class="menu-main">
@@ -130,11 +145,19 @@
 </template>
 
 <script>
-import { getProfile } from '../../api/auth'
+import { bindCampusByLocation, bindCampusManual, getProfile } from '../../api/auth'
 import { getChatUnreadCount } from '../../api/chat'
 import AppTabBar from '../../components/AppTabBar.vue'
 import { useAuthStore } from '../../store/auth'
-import { maskPhone, maskStudentNo } from '../../utils/market'
+import {
+  chooseCampusOption,
+  getCampusDisplayName,
+  hasBoundCampus,
+  requestCampusLocation,
+  resolveCampusSourceLabel,
+  syncCampusProfile
+} from '../../utils/campus'
+import { formatDateTime, maskPhone, maskStudentNo } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
 function createEmptyProfile() {
@@ -142,6 +165,10 @@ function createEmptyProfile() {
     username: '',
     phone: '',
     studentNo: '',
+    campusCode: '',
+    campusName: '',
+    campusBindSource: '',
+    campusBoundAt: '',
     onSaleCount: 0,
     soldCount: 0,
     orderCount: 0,
@@ -172,6 +199,23 @@ export default {
     },
     displayName() {
       return this.profile.username || this.authStore.getDisplayName()
+    },
+    campusDisplayName() {
+      if (!this.isLoggedIn) {
+        return '登录后绑定校区'
+      }
+      return getCampusDisplayName(this.profile)
+    },
+    campusSummaryText() {
+      if (!this.isLoggedIn) {
+        return '登录后可通过定位绑定或手动切换校区，首页和列表会优先展示对应商品。'
+      }
+      if (!hasBoundCampus(this.profile)) {
+        return '你还没有绑定校区，正式发布商品前需要先完成校区绑定。'
+      }
+      const sourceLabel = resolveCampusSourceLabel(this.profile.campusBindSource)
+      const boundAtText = this.profile.campusBoundAt ? formatDateTime(this.profile.campusBoundAt) : ''
+      return [sourceLabel, boundAtText].filter(Boolean).join(' · ') || '校区已绑定'
     },
     profileSummary() {
       if (!this.isLoggedIn) {
@@ -216,6 +260,13 @@ export default {
     this.syncProfile()
   },
   methods: {
+    applyProfileData(profile = {}) {
+      this.profile = {
+        ...createEmptyProfile(),
+        ...(profile || {})
+      }
+      syncCampusProfile(this.profile)
+    },
     syncProfile() {
       this.authStore.sync()
       this.profile = {
@@ -232,8 +283,7 @@ export default {
       getProfile()
         .then((res) => {
           if (res && res.code === 0) {
-            this.profile = { ...createEmptyProfile(), ...(res.data || {}) }
-            this.authStore.setProfile(this.profile)
+            this.applyProfileData(res.data || {})
             return
           }
           uni.showToast({ title: (res && res.message) || '资料加载失败', icon: 'none' })
@@ -250,6 +300,60 @@ export default {
         .catch(() => {
           this.chatUnreadCountValue = 0
         })
+    },
+    async handleCampusManualAction() {
+      if (!this.isLoggedIn) {
+        uni.navigateTo({ url: '/pages/user/login' })
+        return
+      }
+      const selectedCampus = await chooseCampusOption()
+      if (!selectedCampus) {
+        return
+      }
+      uni.showLoading({ title: '校区切换中', mask: true })
+      try {
+        const res = await bindCampusManual({ campusCode: selectedCampus.code })
+        if (!res || res.code !== 0 || !res.data) {
+          throw new Error((res && res.message) || '校区切换失败')
+        }
+        this.applyProfileData(res.data)
+        uni.showToast({ title: '校区已更新', icon: 'success' })
+      } catch (error) {
+        uni.showToast({ title: error && error.message ? error.message : '校区切换失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
+    },
+    async handleCampusLocationAction() {
+      if (!this.isLoggedIn) {
+        uni.navigateTo({ url: '/pages/user/login' })
+        return
+      }
+      try {
+        const location = await requestCampusLocation()
+        uni.showLoading({ title: '定位绑定中', mask: true })
+        const res = await bindCampusByLocation(location)
+        if (!res || res.code !== 0 || !res.data) {
+          throw new Error((res && res.message) || '定位绑定失败')
+        }
+        this.applyProfileData(res.data)
+        uni.showToast({ title: '校区已更新', icon: 'success' })
+      } catch (error) {
+        uni.hideLoading()
+        uni.showModal({
+          title: '定位失败',
+          content: (error && error.message) || '无法识别当前位置，请手动选择校区',
+          confirmText: '手动选择',
+          cancelText: '稍后再说',
+          success: ({ confirm }) => {
+            if (confirm) {
+              this.handleCampusManualAction()
+            }
+          }
+        })
+        return
+      }
+      uni.hideLoading()
     },
     toggleLoginAction() {
       if (!this.isLoggedIn) {
@@ -447,6 +551,85 @@ export default {
 .notice-text {
   font-size: 26rpx;
   color: #5f5346;
+}
+
+.campus-card {
+  border-radius: 26rpx;
+  border: 1rpx solid #d8cfc4;
+  background: rgba(247, 243, 237, 0.95);
+  padding: 24rpx;
+  margin-bottom: 22rpx;
+}
+
+.campus-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.campus-title {
+  font-size: 24rpx;
+  color: #7d7164;
+}
+
+.campus-name {
+  margin-top: 10rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #2e2923;
+}
+
+.campus-badge {
+  min-width: 110rpx;
+  min-height: 44rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: #ece5db;
+  color: #7d7164;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.campus-meta {
+  margin-top: 14rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #6f6255;
+}
+
+.campus-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.campus-action {
+  flex: 1;
+  min-width: 0;
+  height: 76rpx;
+  line-height: 76rpx;
+  border-radius: 18rpx;
+  font-size: 25rpx;
+  font-weight: 600;
+}
+
+.campus-action::after {
+  border: none;
+}
+
+.campus-action.secondary {
+  background: #ffffff;
+  color: #7d7164;
+}
+
+.campus-action.primary {
+  background: #2e2923;
+  color: #ffffff;
 }
 
 .menu-group {

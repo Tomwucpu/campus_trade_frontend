@@ -95,7 +95,9 @@ export default {
               token: res.data.token,
               profile: {
                 id: res.data.userId,
-                username: res.data.username || this.form.username
+                username: res.data.username || this.form.username,
+                campusCode: res.data.campusCode || '',
+                campusName: res.data.campusName || ''
               }
             })
             uni.showToast({ title: '登录成功', icon: 'success' })

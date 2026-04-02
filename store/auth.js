@@ -66,6 +66,18 @@ const authStore = {
 
   getDisplayName() {
     return this.profile.username || '用户'
+  },
+
+  getCampusCode() {
+    return this.profile.campusCode || ''
+  },
+
+  getCampusName() {
+    return this.profile.campusName || ''
+  },
+
+  hasBoundCampus() {
+    return Boolean(this.getCampusCode())
   }
 }
 
