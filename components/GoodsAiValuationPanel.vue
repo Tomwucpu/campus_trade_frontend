@@ -129,6 +129,11 @@ function normalizePositiveNumber(value) {
   return numeric
 }
 
+function isAiUploadExpiredMessage(message) {
+  const text = `${message || ''}`.trim()
+  return text.includes('临时图片') && (text.includes('过期') || text.includes('重新上传'))
+}
+
 export default {
   emits: ['apply-suggestion'],
   props: {
@@ -152,7 +157,7 @@ export default {
       type: Boolean,
       default: false
     },
-    prepareImages: {
+    prepareAiImages: {
       type: Function,
       default: null
     },
@@ -338,21 +343,39 @@ export default {
       this.aiLoading = true
 
       try {
-        const images = typeof this.prepareImages === 'function'
-          ? await this.prepareImages()
-          : this.imageList.slice()
+        const images = typeof this.prepareAiImages === 'function'
+          ? await this.prepareAiImages()
+          : {
+              uploadTokens: [],
+              existingImageUrls: this.imageList.filter((item) => /^https?:\/\//.test(`${item || ''}`)).slice(0, 3)
+            }
 
         if (runId !== this.valuationRunId) {
           return
         }
 
         uni.showLoading({ title: 'AI 识别中', mask: true })
-        const res = await createAiValuation({
-          imageUrls: images.slice(0, 3),
+        let res = await createAiValuation({
+          uploadTokens: Array.isArray(images && images.uploadTokens) ? images.uploadTokens.slice(0, 3) : [],
+          existingImageUrls: Array.isArray(images && images.existingImageUrls) ? images.existingImageUrls.slice(0, 3) : [],
           titleHint: (this.titleHint || '').trim(),
           descriptionHint: (this.descriptionHint || '').trim(),
           categoryIdHint: normalizePositiveNumber(this.categoryIdHint)
         })
+
+        if ((!res || res.code !== 0) && isAiUploadExpiredMessage(res && res.message) && typeof this.prepareAiImages === 'function') {
+          const refreshedImages = await this.prepareAiImages({ forceRefresh: true })
+          if (runId !== this.valuationRunId) {
+            return
+          }
+          res = await createAiValuation({
+            uploadTokens: Array.isArray(refreshedImages && refreshedImages.uploadTokens) ? refreshedImages.uploadTokens.slice(0, 3) : [],
+            existingImageUrls: Array.isArray(refreshedImages && refreshedImages.existingImageUrls) ? refreshedImages.existingImageUrls.slice(0, 3) : [],
+            titleHint: (this.titleHint || '').trim(),
+            descriptionHint: (this.descriptionHint || '').trim(),
+            categoryIdHint: normalizePositiveNumber(this.categoryIdHint)
+          })
+        }
 
         if (runId !== this.valuationRunId) {
           return

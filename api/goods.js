@@ -98,6 +98,14 @@ export function uploadGoodsImage(filePath) {
   })
 }
 
+export function uploadAiValuationImage(filePath) {
+  return uploadFile({
+    url: '/ai/valuations/uploads',
+    filePath,
+    name: 'file'
+  })
+}
+
 export function createAiValuation(data) {
   return request({
     url: '/ai/valuations',

@@ -35,7 +35,7 @@
           :description-hint="form.description"
           :category-id-hint="form.categoryId"
           :category-touched="categoryTouched"
-          :prepare-images="uploadPendingImages"
+          :prepare-ai-images="prepareAiImages"
           :ensure-logged-in="ensureLoggedIn"
           :reset-version="aiResetVersion"
           @apply-suggestion="handleAiSuggestionApply"
@@ -187,6 +187,7 @@ import {
   publishGoodsDraft,
   updateGoods,
   updateGoodsDraft,
+  uploadAiValuationImage,
   uploadGoodsImage
 } from '../../api/goods'
 import { useAuthStore } from '../../store/auth'
@@ -258,6 +259,7 @@ export default {
       previewVisible: false,
       previewIndex: 0,
       localImageMetaMap: {},
+      aiUploadTokenMap: {},
       submitting: false,
       leaving: false,
       detailLoaded: false,
@@ -512,6 +514,7 @@ export default {
       this.resetAiValuationModule()
       this.categoryTouched = true
       this.localImageMetaMap = {}
+      this.aiUploadTokenMap = {}
       this.detailLoaded = true
       this.resetDirtyTracking()
       return detail
@@ -567,6 +570,7 @@ export default {
       const removedImage = this.imageList[index]
       this.form.images = this.imageList.filter((item, currentIndex) => currentIndex !== index)
       this.forgetLocalImageMeta(removedImage)
+      this.forgetAiUploadToken(removedImage)
       this.resetAiValuationModule()
       this.saveDraft()
     },
@@ -627,6 +631,34 @@ export default {
       const nextMeta = { ...this.localImageMetaMap }
       delete nextMeta[filePath]
       this.localImageMetaMap = nextMeta
+    },
+    forgetAiUploadToken(filePath) {
+      if (!filePath || !this.aiUploadTokenMap[filePath]) {
+        return
+      }
+      const nextTokenMap = { ...this.aiUploadTokenMap }
+      delete nextTokenMap[filePath]
+      this.aiUploadTokenMap = nextTokenMap
+    },
+    rememberAiUploadToken(filePath, payload = {}) {
+      if (!filePath || !payload.uploadToken) {
+        return
+      }
+      this.aiUploadTokenMap = {
+        ...this.aiUploadTokenMap,
+        [filePath]: {
+          uploadToken: payload.uploadToken,
+          expiresAt: Number(payload.expiresAt) || 0
+        }
+      }
+    },
+    isAiUploadTokenExpired(filePath) {
+      const cached = filePath ? this.aiUploadTokenMap[filePath] : null
+      if (!cached || !cached.uploadToken) {
+        return true
+      }
+      const expiresAt = Number(cached.expiresAt) || 0
+      return !expiresAt || expiresAt <= Date.now() + 5000
     },
     getLocalImageInfo(filePath) {
       return new Promise((resolve, reject) => {
@@ -713,8 +745,50 @@ export default {
         result.push(res.data.url)
       }
       this.form.images = result
+      this.aiUploadTokenMap = {}
       this.saveDraft()
       return result
+    },
+    async prepareAiImages(options = {}) {
+      const { forceRefresh = false } = options || {}
+      const uploadTokens = []
+      const existingImageUrls = []
+      const aiImages = this.imageList.filter(Boolean).slice(0, 3)
+
+      for (let index = 0; index < aiImages.length; index += 1) {
+        const imagePath = aiImages[index]
+        if (this.isUploadedImage(imagePath)) {
+          existingImageUrls.push(imagePath)
+          continue
+        }
+
+        if (!forceRefresh && !this.isAiUploadTokenExpired(imagePath)) {
+          uploadTokens.push(this.aiUploadTokenMap[imagePath].uploadToken)
+          continue
+        }
+
+        uni.showLoading({
+          title: `准备 AI 图片 ${index + 1}/${aiImages.length}`,
+          mask: true
+        })
+
+        const preparedImagePath = await this.prepareUploadImage(imagePath)
+        const res = await uploadAiValuationImage(preparedImagePath)
+        if (!res || res.code !== 0 || !res.data || !res.data.uploadToken) {
+          throw new Error((res && res.message) || 'AI 图片上传失败')
+        }
+
+        this.rememberAiUploadToken(imagePath, res.data)
+        if (preparedImagePath !== imagePath) {
+          this.forgetLocalImageMeta(preparedImagePath)
+        }
+        uploadTokens.push(res.data.uploadToken)
+      }
+
+      return {
+        uploadTokens,
+        existingImageUrls
+      }
     },
     normalizeOptionalNumber(value) {
       const raw = `${value ?? ''}`.trim()
@@ -902,6 +976,7 @@ export default {
           this.resetAiValuationModule()
           this.categoryTouched = false
           this.localImageMetaMap = {}
+          this.aiUploadTokenMap = {}
           this.detailLoaded = false
           this.mode = MODE_CREATE
           this.resetDirtyTracking()
