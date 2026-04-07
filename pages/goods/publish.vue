@@ -208,8 +208,9 @@ import { syncThemePage } from '../../utils/theme'
 const MODE_CREATE = 'create'
 const MODE_DRAFT = 'draft'
 const MODE_EDIT = 'edit'
-const UPLOAD_COMPRESS_THRESHOLD_BYTES = 1024 * 1024
-const UPLOAD_MAX_LONG_EDGE = 1600
+const MAX_IMAGE_COUNT = 9
+const MAX_AI_IMAGE_COUNT = 3
+const AI_SUGGESTION_KEYS = ['title', 'price', 'conditionLevel', 'description', 'categoryId']
 
 function createDefaultForm() {
   return {
@@ -241,7 +242,6 @@ export default {
     return {
       id: '',
       mode: MODE_CREATE,
-      isEdit: false,
       theme: 'light',
       themeClass: 'theme-light',
       authStore: useAuthStore(),
@@ -257,7 +257,6 @@ export default {
       showConditionPicker: false,
       previewVisible: false,
       previewIndex: 0,
-      localImageMetaMap: {},
       aiUploadTokenMap: {},
       submitting: false,
       leaving: false,
@@ -283,7 +282,13 @@ export default {
     },
     selectedCategoryName() {
       const current = this.categories.find((item) => String(item.id) === String(this.form.categoryId))
-      return current ? current.name : ''
+      if (current) {
+        return current.name
+      }
+      if (this.editCapability && String(this.editCapability.categoryId) === String(this.form.categoryId)) {
+        return this.editCapability.categoryLabel || ''
+      }
+      return ''
     },
     selectedConditionLabel() {
       const current = this.conditionOptions.find((item) => Number(item.value) === Number(this.form.conditionLevel))
@@ -345,40 +350,27 @@ export default {
     syncThemePage(this)
     this.syncCampusState()
     this.id = (options && options.id) || ''
-    this.isEdit = Boolean(this.id)
     this.mode = this.id ? MODE_EDIT : MODE_CREATE
     this.detailLoaded = false
     this.resetDirtyTracking()
-    if (this.isEdit && !this.authStore.sync().isLoggedIn()) {
-      uni.showToast({ title: '请先登录后再编辑商品', icon: 'none' })
-      setTimeout(() => {
-        uni.navigateTo({ url: '/pages/user/login' })
-      }, 260)
+    if (this.id && !this.authStore.sync().isLoggedIn()) {
+      this.redirectToLogin('请先登录后再编辑商品')
       return
     }
     this.fetchCategories()
-    if (this.isEdit) {
-      this.fetchDetail(true)
+    if (this.id) {
+      this.fetchDetail()
     }
   },
   onShow() {
     syncThemePage(this)
     this.syncCampusState()
-    if (this.isEdit && this.authStore.sync().isLoggedIn() && !this.detailLoaded) {
-      this.fetchDetail(true)
+    if (this.id && this.authStore.sync().isLoggedIn() && !this.detailLoaded) {
+      this.fetchDetail()
     }
   },
   onBackPress() {
-    if (this.previewVisible) {
-      this.closePreview()
-      return true
-    }
-    if (this.showCategoryPicker) {
-      this.showCategoryPicker = false
-      return true
-    }
-    if (this.showConditionPicker) {
-      this.showConditionPicker = false
+    if (this.closeTransientPanels()) {
       return true
     }
     if (this.shouldPromptSaveOnLeave()) {
@@ -392,6 +384,12 @@ export default {
       const authStore = this.authStore.sync()
       this.isLoggedInValue = authStore.isLoggedIn()
       this.campusProfile = { ...(authStore.profile || {}) }
+    },
+    redirectToLogin(title = '请先登录后再操作') {
+      uni.showToast({ title, icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/user/login' })
+      }, 260)
     },
     normalizeDecimalString(value) {
       const raw = `${value ?? ''}`.trim()
@@ -428,16 +426,20 @@ export default {
       }
 
       let hasPatch = false
-      const patchKeys = ['title', 'price', 'conditionLevel', 'description', 'categoryId']
-      patchKeys.forEach((key) => {
+      const nextForm = { ...this.form }
+      AI_SUGGESTION_KEYS.forEach((key) => {
         if (!Object.prototype.hasOwnProperty.call(patch, key)) {
           return
         }
-        this.form[key] = patch[key]
+        nextForm[key] = patch[key]
         hasPatch = true
       })
 
       if (hasPatch) {
+        this.form = nextForm
+        if (Object.prototype.hasOwnProperty.call(patch, 'categoryId')) {
+          this.categoryTouched = true
+        }
         this.saveDraft()
       }
     },
@@ -446,10 +448,7 @@ export default {
       if (this.isLoggedInValue) {
         return true
       }
-      uni.showToast({ title: '请先登录后再操作', icon: 'none' })
-      setTimeout(() => {
-        uni.navigateTo({ url: '/pages/user/login' })
-      }, 260)
+      this.redirectToLogin('请先登录后再操作')
       return false
     },
     showActionConfirm(title, content) {
@@ -477,28 +476,47 @@ export default {
     shouldPromptSaveOnLeave() {
       return (this.isCreateMode || this.isDraftMode) && this.hasUnsavedChanges
     },
+    closeTransientPanels() {
+      if (this.previewVisible) {
+        this.closePreview()
+        return true
+      }
+      if (this.showCategoryPicker) {
+        this.showCategoryPicker = false
+        return true
+      }
+      if (this.showConditionPicker) {
+        this.showConditionPicker = false
+        return true
+      }
+      return false
+    },
     fetchCategories() {
       getGoodsCategories()
         .then((res) => {
           if (res && res.code === 0 && Array.isArray(res.data) && res.data.length) {
+            const previousCategoryId = this.form.categoryId
             this.categories = res.data
             const hasCurrentCategory = this.categories.some((item) => String(item.id) === String(this.form.categoryId))
-            if (!hasCurrentCategory) {
+            if (!hasCurrentCategory && !this.id) {
               this.form.categoryId = res.data[0].id
             }
             if (!this.id && !this.hasUnsavedChanges) {
               this.resetDirtyTracking()
-            } else {
+            } else if (String(previousCategoryId) !== String(this.form.categoryId)) {
               this.saveDraft()
             }
           }
         })
         .catch(() => {})
     },
-    applyDetailToForm(rawDetail = {}) {
-      const detail = normalizeGoodsItem(rawDetail, 0)
+    applyEditCapability(detail = {}) {
       this.editCapability = detail
       this.editWillAutoCancelPendingOrder = detail.status !== 'DRAFT' && detail.hasPendingPaymentOrder === true
+    },
+    applyDetailToForm(rawDetail = {}) {
+      const detail = normalizeGoodsItem(rawDetail, 0)
+      this.applyEditCapability(detail)
       this.mode = detail.status === 'DRAFT' ? MODE_DRAFT : MODE_EDIT
       this.form = {
         ...createDefaultForm(),
@@ -508,24 +526,23 @@ export default {
         price: detail.priceValue ? String(detail.priceValue) : '',
         originalPrice: detail.originalPriceValue ? String(detail.originalPriceValue) : '',
         description: detail.description || '',
-        images: Array.isArray(rawDetail.images) ? rawDetail.images.slice(0, 9) : []
+        images: Array.isArray(rawDetail.images) ? rawDetail.images.slice(0, MAX_IMAGE_COUNT) : []
       }
       this.resetAiValuationModule()
       this.categoryTouched = true
-      this.localImageMetaMap = {}
       this.aiUploadTokenMap = {}
       this.detailLoaded = true
       this.resetDirtyTracking()
       return detail
     },
-    fetchDetail(syncForm = true) {
+    fetchDetail() {
       getGoodsDetail(this.id)
         .then((res) => {
           if (res && res.code === 0 && res.data) {
             const detail = normalizeGoodsItem(res.data, 0)
             if (detail.status !== 'DRAFT' && detail.canEdit === false) {
-              this.editCapability = detail
-              this.editWillAutoCancelPendingOrder = detail.hasPendingPaymentOrder === true
+              this.applyEditCapability(detail)
+              this.detailLoaded = true
               uni.showModal({
                 title: '当前不可编辑',
                 content: detail.editBlockedReason || '当前状态暂不支持编辑商品',
@@ -534,13 +551,6 @@ export default {
                   this.performBackNavigation()
                 }
               })
-              return
-            }
-            if (!syncForm) {
-              this.editCapability = detail
-              this.editWillAutoCancelPendingOrder = detail.status !== 'DRAFT' && detail.hasPendingPaymentOrder === true
-              this.mode = detail.status === 'DRAFT' ? MODE_DRAFT : MODE_EDIT
-              this.detailLoaded = true
               return
             }
             this.applyDetailToForm(res.data)
@@ -554,12 +564,11 @@ export default {
     },
     chooseImages() {
       uni.chooseImage({
-        count: 9 - this.imageList.length,
+        count: MAX_IMAGE_COUNT - this.imageList.length,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.rememberLocalImageMeta(res.tempFiles)
-          this.form.images = [...this.imageList, ...(res.tempFilePaths || [])].slice(0, 9)
+          this.form.images = [...this.imageList, ...(res.tempFilePaths || [])].slice(0, MAX_IMAGE_COUNT)
           this.resetAiValuationModule()
           this.saveDraft()
         }
@@ -568,7 +577,6 @@ export default {
     removeImage(index) {
       const removedImage = this.imageList[index]
       this.form.images = this.imageList.filter((item, currentIndex) => currentIndex !== index)
-      this.forgetLocalImageMeta(removedImage)
       this.forgetAiUploadToken(removedImage)
       this.resetAiValuationModule()
       this.saveDraft()
@@ -601,36 +609,6 @@ export default {
     isUploadedImage(value) {
       return /^https?:\/\//.test(`${value || ''}`)
     },
-    rememberLocalImageMeta(fileList = []) {
-      if (!Array.isArray(fileList) || !fileList.length) {
-        return
-      }
-      const nextMeta = {}
-      fileList.forEach((file) => {
-        const path = file && (file.path || file.tempFilePath)
-        if (!path) {
-          return
-        }
-        nextMeta[path] = {
-          size: Number(file.size) || 0
-        }
-      })
-      if (!Object.keys(nextMeta).length) {
-        return
-      }
-      this.localImageMetaMap = {
-        ...this.localImageMetaMap,
-        ...nextMeta
-      }
-    },
-    forgetLocalImageMeta(filePath) {
-      if (!filePath || !this.localImageMetaMap[filePath]) {
-        return
-      }
-      const nextMeta = { ...this.localImageMetaMap }
-      delete nextMeta[filePath]
-      this.localImageMetaMap = nextMeta
-    },
     forgetAiUploadToken(filePath) {
       if (!filePath || !this.aiUploadTokenMap[filePath]) {
         return
@@ -659,67 +637,6 @@ export default {
       const expiresAt = Number(cached.expiresAt) || 0
       return !expiresAt || expiresAt <= Date.now() + 5000
     },
-    getLocalImageInfo(filePath) {
-      return new Promise((resolve, reject) => {
-        uni.getImageInfo({
-          src: filePath,
-          success: resolve,
-          fail: reject
-        })
-      })
-    },
-    getLocalImageSize(filePath) {
-      const cached = this.localImageMetaMap[filePath]
-      if (cached && Number(cached.size) > 0) {
-        return Promise.resolve(Number(cached.size))
-      }
-
-      // #ifdef H5
-      return Promise.resolve(0)
-      // #endif
-
-      // #ifndef H5
-      return new Promise((resolve) => {
-        uni.getFileInfo({
-          filePath,
-          success: (res) => {
-            const size = Number((res && res.size) || 0)
-            if (size > 0) {
-              this.rememberLocalImageMeta([{ path: filePath, size }])
-            }
-            resolve(size)
-          },
-          fail: () => resolve(0)
-        })
-      })
-      // #endif
-    },
-    needsUploadCompression(imageInfo = {}, fileSize = 0) {
-      const longEdge = Math.max(Number(imageInfo.width) || 0, Number(imageInfo.height) || 0)
-      return longEdge > UPLOAD_MAX_LONG_EDGE || Number(fileSize || 0) > UPLOAD_COMPRESS_THRESHOLD_BYTES
-    },
-    compressUploadImage(filePath, imageInfo = {}) {
-      // #ifdef H5
-      return Promise.resolve(filePath)
-      // #endif
-    },
-    async prepareUploadImage(filePath) {
-      if (!filePath || this.isUploadedImage(filePath)) {
-        return filePath
-      }
-      try {
-        const [imageInfo, fileSize] = await Promise.all([
-          this.getLocalImageInfo(filePath),
-          this.getLocalImageSize(filePath)
-        ])
-        if (!this.needsUploadCompression(imageInfo, fileSize)) {
-          return filePath
-        }
-        return await this.compressUploadImage(filePath, imageInfo)
-      } catch (error) {
-        return filePath
-      }
-    },
     async uploadPendingImages() {
       const result = []
       for (let index = 0; index < this.imageList.length; index += 1) {
@@ -732,14 +649,9 @@ export default {
           title: `上传图片 ${index + 1}/${this.imageList.length}`,
           mask: true
         })
-        const preparedImagePath = await this.prepareUploadImage(imagePath)
-        const res = await uploadGoodsImage(preparedImagePath)
+        const res = await uploadGoodsImage(imagePath)
         if (!res || res.code !== 0 || !res.data || !res.data.url) {
           throw new Error((res && res.message) || '图片上传失败')
-        }
-        this.forgetLocalImageMeta(imagePath)
-        if (preparedImagePath !== imagePath) {
-          this.forgetLocalImageMeta(preparedImagePath)
         }
         result.push(res.data.url)
       }
@@ -752,7 +664,7 @@ export default {
       const { forceRefresh = false } = options || {}
       const uploadTokens = []
       const existingImageUrls = []
-      const aiImages = this.imageList.filter(Boolean).slice(0, 3)
+      const aiImages = this.imageList.filter(Boolean).slice(0, MAX_AI_IMAGE_COUNT)
 
       for (let index = 0; index < aiImages.length; index += 1) {
         const imagePath = aiImages[index]
@@ -771,16 +683,12 @@ export default {
           mask: true
         })
 
-        const preparedImagePath = await this.prepareUploadImage(imagePath)
-        const res = await uploadAiValuationImage(preparedImagePath)
+        const res = await uploadAiValuationImage(imagePath)
         if (!res || res.code !== 0 || !res.data || !res.data.uploadToken) {
           throw new Error((res && res.message) || 'AI 图片上传失败')
         }
 
         this.rememberAiUploadToken(imagePath, res.data)
-        if (preparedImagePath !== imagePath) {
-          this.forgetLocalImageMeta(preparedImagePath)
-        }
         uploadTokens.push(res.data.uploadToken)
       }
 
@@ -801,8 +709,8 @@ export default {
       return {
         title: (this.form.title || '').trim(),
         categoryId: this.form.categoryId ? Number(this.form.categoryId) : null,
-        conditionLevel: this.form.conditionLevel ? clampConditionLevel(this.form.conditionLevel) : null,
-        price: this.normalizeOptionalNumber(this.form.price),
+        conditionLevel: clampConditionLevel(this.form.conditionLevel),
+        price: this.normalizeOptionalNumber(this.form.price) ?? 0,
         originalPrice: this.normalizeOptionalNumber(this.form.originalPrice),
         description: (this.form.description || '').trim(),
         images
@@ -818,6 +726,23 @@ export default {
         description: (this.form.description || '').trim(),
         images
       }
+    },
+    validatePublishForm() {
+      if (!this.form.title || !this.form.price || !this.form.description) {
+        return '璇疯ˉ鍏ㄦ爣棰樸€佷环鏍煎拰鎻忚堪'
+      }
+
+      const price = Number(this.form.price)
+      if (!price || Number.isNaN(price) || price <= 0) {
+        return '璇疯緭鍏ユ纭殑鍑哄敭浠锋牸'
+      }
+
+      const originalPrice = this.normalizeOptionalNumber(this.form.originalPrice)
+      if (originalPrice !== null && (Number.isNaN(originalPrice) || originalPrice < 0)) {
+        return '璇疯緭鍏ユ纭殑鍘熶环'
+      }
+
+      return ''
     },
     async persistDraftToServer(options = {}) {
       if (!this.ensureLoggedIn()) {
@@ -838,7 +763,6 @@ export default {
           throw new Error((res && res.message) || '保存草稿失败')
         }
         this.id = `${res.data.id || this.id || ''}`
-        this.isEdit = Boolean(this.id)
         this.applyDetailToForm(res.data)
         return res.data
       } finally {
@@ -889,6 +813,18 @@ export default {
         this.leaving = false
       }
     },
+    resetPageState() {
+      this.id = ''
+      this.mode = MODE_CREATE
+      this.form = createDefaultForm()
+      this.categoryTouched = false
+      this.aiUploadTokenMap = {}
+      this.detailLoaded = false
+      this.editCapability = null
+      this.editWillAutoCancelPendingOrder = false
+      this.resetAiValuationModule()
+      this.resetDirtyTracking()
+    },
     async submit() {
       if (this.submitting) {
         return
@@ -919,19 +855,9 @@ export default {
         return
       }
 
-      if (!this.form.title || !this.form.price || !this.form.description) {
-        uni.showToast({ title: '请补全标题、价格和描述', icon: 'none' })
-        return
-      }
-
-      const price = Number(this.form.price)
-      const originalPrice = this.normalizeOptionalNumber(this.form.originalPrice)
-      if (!price || Number.isNaN(price) || price <= 0) {
-        uni.showToast({ title: '请输入正确的出售价格', icon: 'none' })
-        return
-      }
-      if (originalPrice !== null && (Number.isNaN(originalPrice) || originalPrice < 0)) {
-        uni.showToast({ title: '请输入正确的原价', icon: 'none' })
+      const validationMessage = this.validatePublishForm()
+      if (validationMessage) {
+        uni.showToast({ title: validationMessage, icon: 'none' })
         return
       }
 
@@ -961,7 +887,6 @@ export default {
           if (!saveRes || saveRes.code !== 0) {
             throw new Error((saveRes && saveRes.message) || '草稿同步失败')
           }
-          this.applyDetailToForm(saveRes.data || {})
           res = await publishGoodsDraft(this.id)
         } else {
           res = await updateGoods(this.id, this.buildPublishPayload(images))
@@ -971,15 +896,7 @@ export default {
           const targetId = res.data.id || this.id
           const wasEditMode = this.isPublishedEditMode
           this.goodsStore.setLastViewedId(targetId)
-          this.form = createDefaultForm()
-          this.resetAiValuationModule()
-          this.categoryTouched = false
-          this.localImageMetaMap = {}
-          this.aiUploadTokenMap = {}
-          this.detailLoaded = false
-          this.mode = MODE_CREATE
-          this.resetDirtyTracking()
-          uni.hideLoading()
+          this.resetPageState()
           uni.showToast({ title: res.message || (wasEditMode ? '修改成功' : '发布成功'), icon: 'success' })
           setTimeout(() => {
             const query = wasEditMode ? `id=${targetId}` : `id=${targetId}&fromPublish=1`
@@ -989,7 +906,6 @@ export default {
         }
         throw new Error((res && res.message) || '提交失败')
       } catch (error) {
-        uni.hideLoading()
         uni.showToast({ title: error && error.message ? error.message : '提交失败', icon: 'none' })
       } finally {
         uni.hideLoading()
@@ -1005,16 +921,7 @@ export default {
       uni.reLaunch({ url: '/pages/index/index' })
     },
     goBack() {
-      if (this.previewVisible) {
-        this.closePreview()
-        return
-      }
-      if (this.showCategoryPicker) {
-        this.showCategoryPicker = false
-        return
-      }
-      if (this.showConditionPicker) {
-        this.showConditionPicker = false
+      if (this.closeTransientPanels()) {
         return
       }
       this.handlePageExit()
@@ -1061,33 +968,6 @@ export default {
 .placeholder-btn {
   opacity: 0;
   pointer-events: none;
-}
-
-.save-draft-btn {
-  min-width: 132rpx;
-  height: 64rpx;
-  line-height: 64rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid var(--publish-border);
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--publish-accent-strong);
-  font-size: 22rpx;
-  font-weight: 700;
-  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
-}
-
-.save-draft-btn::after {
-  border: none;
-}
-
-.save-draft-btn:active {
-  transform: scale(0.96);
-  box-shadow: 0 8rpx 16rpx rgba(45, 39, 31, 0.12);
-}
-
-.save-draft-btn[disabled] {
-  opacity: 0.6;
 }
 
 .publish-card {
