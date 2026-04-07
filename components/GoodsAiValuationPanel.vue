@@ -141,10 +141,6 @@ export default {
       type: Array,
       default: () => []
     },
-    titleHint: {
-      type: String,
-      default: ''
-    },
     descriptionHint: {
       type: String,
       default: ''
@@ -310,6 +306,12 @@ export default {
         return false
       }
     },
+    buildAiValuationPayload(images) {
+      return {
+        uploadTokens: Array.isArray(images && images.uploadTokens) ? images.uploadTokens.slice(0, 3) : [],
+        existingImageUrls: Array.isArray(images && images.existingImageUrls) ? images.existingImageUrls.slice(0, 3) : []
+      }
+    },
     async handleAiEntry() {
       if (this.aiLoading) {
         return
@@ -355,26 +357,14 @@ export default {
         }
 
         uni.showLoading({ title: 'AI 识别中', mask: true })
-        let res = await createAiValuation({
-          uploadTokens: Array.isArray(images && images.uploadTokens) ? images.uploadTokens.slice(0, 3) : [],
-          existingImageUrls: Array.isArray(images && images.existingImageUrls) ? images.existingImageUrls.slice(0, 3) : [],
-          titleHint: (this.titleHint || '').trim(),
-          descriptionHint: (this.descriptionHint || '').trim(),
-          categoryIdHint: normalizePositiveNumber(this.categoryIdHint)
-        })
+        let res = await createAiValuation(this.buildAiValuationPayload(images))
 
         if ((!res || res.code !== 0) && isAiUploadExpiredMessage(res && res.message) && typeof this.prepareAiImages === 'function') {
           const refreshedImages = await this.prepareAiImages({ forceRefresh: true })
           if (runId !== this.valuationRunId) {
             return
           }
-          res = await createAiValuation({
-            uploadTokens: Array.isArray(refreshedImages && refreshedImages.uploadTokens) ? refreshedImages.uploadTokens.slice(0, 3) : [],
-            existingImageUrls: Array.isArray(refreshedImages && refreshedImages.existingImageUrls) ? refreshedImages.existingImageUrls.slice(0, 3) : [],
-            titleHint: (this.titleHint || '').trim(),
-            descriptionHint: (this.descriptionHint || '').trim(),
-            categoryIdHint: normalizePositiveNumber(this.categoryIdHint)
-          })
+          res = await createAiValuation(this.buildAiValuationPayload(refreshedImages))
         }
 
         if (runId !== this.valuationRunId) {

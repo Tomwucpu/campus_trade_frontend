@@ -31,7 +31,6 @@
 
         <GoodsAiValuationPanel
           :images="imageList"
-          :title-hint="form.title"
           :description-hint="form.description"
           :category-id-hint="form.categoryId"
           :category-touched="categoryTouched"
