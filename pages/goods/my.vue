@@ -671,15 +671,19 @@ export default {
 }
 
 .tabs-row {
-  min-width: 100%;
-  display: inline-flex;
+  width: 100%;
+  display: flex;
   align-items: stretch;
+  gap: 4rpx;
+  padding: 0 12rpx;
+  box-sizing: border-box;
 }
 
 .tab-item {
-  flex: 1;
-  min-width: 176rpx;
+  flex: 1 1 0;
+  min-width: 0;
   height: 88rpx;
+  padding: 0 8rpx;
   position: relative;
   display: flex;
   align-items: center;
