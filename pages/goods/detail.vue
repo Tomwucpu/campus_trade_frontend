@@ -119,6 +119,7 @@ import { openConversationByGoods } from '../../api/chat'
 import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
+import { BASE_URL } from '../../utils/request'
 import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import ImagePreviewer from '../../components/ImagePreviewer.vue'
@@ -363,16 +364,46 @@ export default {
           uni.showToast({ title: '下单失败', icon: 'none' })
         })
     },
+    buildSharePath() {
+      const detailId = encodeURIComponent(String(this.id || '').trim())
+      return detailId ? `/pages/goods/detail?id=${detailId}` : ''
+    },
+    resolveShareOrigin() {
+      // #ifdef H5
+      if (typeof window !== 'undefined' && window.location) {
+        const { protocol, origin, pathname } = window.location
+        if (/^https?:$/.test(protocol) && origin) {
+          return `${origin}${String(pathname || '')
+            .replace(/index\.html$/i, '')
+            .replace(/\/$/, '')}`
+        }
+      }
+      // #endif
+
+      return String(BASE_URL || '').replace(/\/api\/v1\/?$/i, '')
+    },
+    buildShareLink() {
+      const sharePath = this.buildSharePath()
+      if (!sharePath) {
+        return ''
+      }
+
+      const shareOrigin = this.resolveShareOrigin()
+      if (!shareOrigin) {
+        return sharePath
+      }
+      return `${shareOrigin}/#${sharePath}`
+    },
     shareDetail() {
-      if (!this.id) {
+      const shareLink = this.buildShareLink()
+      if (!shareLink) {
         uni.showToast({ title: '暂无可分享内容', icon: 'none' })
         return
       }
-      const sharePath = `/pages/goods/detail?id=${this.id}`
       uni.setClipboardData({
-        data: sharePath,
+        data: shareLink,
         success: () => {
-          uni.showToast({ title: '链接已复制', icon: 'none' })
+          uni.showToast({ title: '详情链接已复制', icon: 'none' })
         },
         fail: () => {
           uni.showToast({ title: '暂不支持分享', icon: 'none' })

@@ -19,7 +19,13 @@
     </view>
 
     <view class="market-shell page-body">
-      <view v-if="!conversations.length" class="market-card empty-wrap">
+      <view v-if="conversationLoading && !conversations.length" class="market-card loading-wrap">
+        <text class="icon-font bi bi-arrow-repeat loading-icon"></text>
+        <text class="loading-title">聊天记录加载中...</text>
+        <text class="loading-subtitle">正在同步最近会话和未读消息</text>
+      </view>
+
+      <view v-else-if="!conversations.length" class="market-card empty-wrap">
         <EmptyState
           icon="bi bi-chat-left-text"
           title="还没有聊天记录"
@@ -91,6 +97,8 @@ export default {
       themeClass: 'theme-light',
       authStore: useAuthStore(),
       conversations: [],
+      conversationLoading: true,
+      activeConversationRequestId: 0,
       noticeUnreadCount: 0,
       topbarReady: false,
       listReady: false,
@@ -183,6 +191,7 @@ export default {
       if (this.authStore.sync().isLoggedIn()) {
         return true
       }
+      this.conversationLoading = false
       uni.showToast({ title: '请先登录后查看聊天', icon: 'none' })
       setTimeout(() => {
         uni.navigateTo({ url: '/pages/user/login' })
@@ -190,11 +199,16 @@ export default {
       return false
     },
     refreshList(showFeedback = false) {
+      const requestId = ++this.activeConversationRequestId
+      this.conversationLoading = true
       getConversationList({
         pageNum: 1,
         pageSize: 50
       })
         .then((res) => {
+          if (requestId !== this.activeConversationRequestId) {
+            return
+          }
           if (res && res.code === 0) {
             this.conversations = (res.data && res.data.records) || []
             if (showFeedback) {
@@ -208,10 +222,19 @@ export default {
           }
         })
         .catch(() => {
+          if (requestId !== this.activeConversationRequestId) {
+            return
+          }
           this.conversations = []
           if (showFeedback) {
             uni.showToast({ title: '刷新失败', icon: 'none' })
           }
+        })
+        .finally(() => {
+          if (requestId !== this.activeConversationRequestId) {
+            return
+          }
+          this.conversationLoading = false
         })
     },
     fetchNoticeUnreadCount() {
@@ -392,6 +415,45 @@ export default {
   padding: 12rpx;
 }
 
+.loading-wrap {
+  min-height: 320rpx;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+}
+
+.loading-icon {
+  font-size: 42rpx;
+  color: #7d756a;
+  animation: spinnerRotate 0.9s linear infinite;
+}
+
+.loading-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2a241d;
+}
+
+.loading-subtitle {
+  font-size: 23rpx;
+  color: #8f867b;
+}
+
+.theme-dark .loading-icon {
+  color: #c8beb1;
+}
+
+.theme-dark .loading-title {
+  color: #f3ede4;
+}
+
+.theme-dark .loading-subtitle {
+  color: #b8afa3;
+}
+
 .conversation-list {
   display: flex;
   flex-direction: column;
@@ -547,6 +609,15 @@ export default {
   }
   50% {
     box-shadow: 0 0 0 10rpx rgba(155, 58, 50, 0);
+  }
+}
+
+@keyframes spinnerRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
