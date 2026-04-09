@@ -13,14 +13,32 @@
         <view class="market-row-head">
           <view>
             <view class="market-section-title">商品图片</view>
-            <view class="market-section-subtitle">最多上传 9 张，AI 识别会优先使用前 3 张代表图。</view>
+            <view class="market-section-subtitle">最多上传 9 张，AI 只识别前三张。</view>
           </view>
           <view class="image-count">{{ imageList.length }}/9</view>
         </view>
 
         <view class="image-grid">
-          <view v-for="(item, index) in imageList" :key="`${item}-${index}`" class="image-item" @click="previewImages(index)">
-            <image class="image-preview" :src="item" mode="aspectFill"></image>
+          <view v-for="(item, index) in imageList" :key="`${item}-${index}`" class="image-item">
+            <view class="image-order-chip" :class="{ active: index === 0 }">{{ index === 0 ? '首图' : `第${index + 1}张` }}</view>
+            <image class="image-preview" :src="item" mode="aspectFill" @click="previewImages(index)"></image>
+            <view class="image-actions" @click.stop>
+              <view
+                class="image-sort-btn"
+                :class="{ active: index === 0, disabled: index === 0 }"
+                @click.stop="moveImageToFirst(index)"
+              >
+                首图
+              </view>
+              <view class="image-sort-btn" :class="{ disabled: index === 0 }" @click.stop="moveImageLeft(index)">左移</view>
+              <view
+                class="image-sort-btn"
+                :class="{ disabled: index === imageList.length - 1 }"
+                @click.stop="moveImageRight(index)"
+              >
+                右移
+              </view>
+            </view>
             <view class="image-remove" @click.stop="removeImage(index)">×</view>
           </view>
           <view v-if="imageList.length < 9" class="image-uploader" @click="chooseImages">
@@ -167,6 +185,21 @@
         </view>
       </view>
     </view>
+
+    <view v-if="showImageInsertPicker" class="picker-mask" @click="closeImageInsertPicker">
+      <view class="picker-sheet" @click.stop>
+        <view class="picker-title">新图片插入位置</view>
+        <view class="picker-subtitle">本次选中 {{ pendingInsertImages.length }} 张，发布和 AI 识别都会按这里的顺序处理。</view>
+        <view
+          v-for="item in imageInsertOptions"
+          :key="item.value"
+          class="picker-item"
+          @click="applyPendingImages(item.value)"
+        >
+          {{ item.label }}
+        </view>
+      </view>
+    </view>
     <ImagePreviewer
       :visible="previewVisible"
       :images="imageList"
@@ -201,6 +234,7 @@ import {
   getDefaultCategoryList,
   normalizeGoodsItem
 } from '../../utils/market'
+import { insertImagesAt, moveImage } from '../../utils/image-order.mjs'
 import GoodsAiValuationPanel from '../../components/GoodsAiValuationPanel.vue'
 import ImagePreviewer from '../../components/ImagePreviewer.vue'
 import { syncThemePage } from '../../utils/theme'
@@ -255,8 +289,10 @@ export default {
       conditionOptions: getConditionOptions(),
       showCategoryPicker: false,
       showConditionPicker: false,
+      showImageInsertPicker: false,
       previewVisible: false,
       previewIndex: 0,
+      pendingInsertImages: [],
       aiUploadTokenMap: {},
       submitting: false,
       leaving: false,
@@ -279,6 +315,17 @@ export default {
     },
     imageList() {
       return Array.isArray(this.form.images) ? this.form.images : []
+    },
+    imageInsertOptions() {
+      return Array.from({ length: this.imageList.length + 1 }, (_, index) => {
+        if (index === 0) {
+          return { value: index, label: '设为第 1 张（首图）' }
+        }
+        if (index === this.imageList.length) {
+          return { value: index, label: `追加到末尾（从第 ${index + 1} 张开始）` }
+        }
+        return { value: index, label: `从第 ${index + 1} 张开始插入` }
+      })
     },
     selectedCategoryName() {
       const current = this.categories.find((item) => String(item.id) === String(this.form.categoryId))
@@ -481,6 +528,10 @@ export default {
         this.closePreview()
         return true
       }
+      if (this.showImageInsertPicker) {
+        this.closeImageInsertPicker()
+        return true
+      }
       if (this.showCategoryPicker) {
         this.showCategoryPicker = false
         return true
@@ -568,11 +619,56 @@ export default {
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.form.images = [...this.imageList, ...(res.tempFilePaths || [])].slice(0, MAX_IMAGE_COUNT)
-          this.resetAiValuationModule()
-          this.saveDraft()
+          this.handleChosenImages(res.tempFilePaths || [])
         }
       })
+    },
+    handleChosenImages(tempFilePaths = []) {
+      const nextImages = Array.isArray(tempFilePaths) ? tempFilePaths.filter(Boolean) : []
+      if (!nextImages.length) {
+        return
+      }
+      if (!this.imageList.length) {
+        this.applyImageList(insertImagesAt(this.imageList, nextImages, 0, MAX_IMAGE_COUNT))
+        return
+      }
+      this.pendingInsertImages = nextImages
+      this.showImageInsertPicker = true
+    },
+    closeImageInsertPicker() {
+      this.showImageInsertPicker = false
+      this.pendingInsertImages = []
+    },
+    applyPendingImages(insertIndex) {
+      if (!this.pendingInsertImages.length) {
+        this.closeImageInsertPicker()
+        return
+      }
+      this.applyImageList(insertImagesAt(this.imageList, this.pendingInsertImages, insertIndex, MAX_IMAGE_COUNT))
+      this.closeImageInsertPicker()
+    },
+    applyImageList(nextImages = []) {
+      this.form.images = Array.isArray(nextImages) ? nextImages.slice(0, MAX_IMAGE_COUNT) : []
+      this.resetAiValuationModule()
+      this.saveDraft()
+    },
+    moveImageToFirst(index) {
+      if (index <= 0) {
+        return
+      }
+      this.applyImageList(moveImage(this.imageList, index, 0))
+    },
+    moveImageLeft(index) {
+      if (index <= 0) {
+        return
+      }
+      this.applyImageList(moveImage(this.imageList, index, index - 1))
+    },
+    moveImageRight(index) {
+      if (index >= this.imageList.length - 1) {
+        return
+      }
+      this.applyImageList(moveImage(this.imageList, index, index + 1))
     },
     removeImage(index) {
       const removedImage = this.imageList[index]
@@ -818,6 +914,8 @@ export default {
       this.mode = MODE_CREATE
       this.form = createDefaultForm()
       this.categoryTouched = false
+      this.showImageInsertPicker = false
+      this.pendingInsertImages = []
       this.aiUploadTokenMap = {}
       this.detailLoaded = false
       this.editCapability = null
@@ -1030,11 +1128,74 @@ export default {
 .image-preview {
   width: 100%;
   height: 100%;
+  display: block;
   transition: transform 320ms ease;
 }
 
 .image-item:active .image-preview {
   transform: scale(1.04);
+}
+
+.image-order-chip {
+  position: absolute;
+  left: 12rpx;
+  top: 12rpx;
+  z-index: 2;
+  min-width: 60rpx;
+  height: 42rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--publish-accent-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+  box-shadow: 0 8rpx 18rpx rgba(45, 39, 31, 0.12);
+}
+
+.image-order-chip.active {
+  background: rgba(39, 35, 30, 0.82);
+  color: #ffffff;
+}
+
+.image-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 52rpx 10rpx 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8rpx;
+  background: linear-gradient(180deg, rgba(16, 12, 8, 0) 0%, rgba(16, 12, 8, 0.72) 100%);
+}
+
+.image-sort-btn {
+  flex: 1;
+  min-width: 0;
+  height: 44rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 600;
+  backdrop-filter: blur(8rpx);
+}
+
+.image-sort-btn.active {
+  background: rgba(239, 230, 212, 0.95);
+  color: var(--publish-accent-strong);
+}
+
+.image-sort-btn.disabled {
+  opacity: 0.42;
 }
 
 .image-remove {
@@ -1301,6 +1462,14 @@ export default {
   font-weight: 700;
   color: var(--campus-text);
   margin-bottom: 22rpx;
+}
+
+.picker-subtitle {
+  margin: -8rpx 0 22rpx;
+  text-align: center;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: var(--publish-muted);
 }
 
 .picker-item {

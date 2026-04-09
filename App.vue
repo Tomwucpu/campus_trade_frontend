@@ -122,7 +122,7 @@ button::after {
 }
 
 .market-section-subtitle {
-  font-size: 24rpx;
+  font-size: 22rpx;
   line-height: 1.7;
   color: var(--campus-text-muted);
 }
