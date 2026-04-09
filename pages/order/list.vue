@@ -3,11 +3,7 @@
     <view class="order-header safe-top">
       <view class="market-shell header-shell">
         <view class="header-bar">
-          <view class="header-back" @click="goBack">
-            <text class="bi bi-arrow-left icon-font"></text>
-          </view>
           <view class="header-title">我的订单</view>
-          <view class="header-placeholder"></view>
         </view>
       </view>
 
@@ -252,13 +248,6 @@ export default {
           }, 120)
         })
     },
-    goBack() {
-      uni.navigateBack({
-        fail: () => {
-          uni.reLaunch({ url: '/pages/user/profile' })
-        }
-      })
-    },
     roleText(item) {
       return item && item.roleType === 'SELLER' ? '我卖的' : '我买的'
     },
@@ -421,27 +410,8 @@ export default {
 .header-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 88rpx;
-}
-
-.header-back,
-.header-placeholder {
-  width: 64rpx;
-  height: 64rpx;
-  flex-shrink: 0;
-}
-
-.header-back {
-  border-radius: 50%;
-  color: #2a251f;
-  display: flex;
-  align-items: center;
   justify-content: center;
-}
-
-.header-back .icon-font {
-  font-size: 36rpx;
+  min-height: 88rpx;
 }
 
 .header-title {
