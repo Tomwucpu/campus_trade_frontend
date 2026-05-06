@@ -118,6 +118,7 @@ import { cancelOrder, completeOrder, deleteOrder, getOrderDetail, payOrder, ship
 import StatusTag from '../../components/StatusTag.vue'
 import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
+import { openConversationAndNavigate } from '../../utils/chat-entry.mjs'
 import {
   buildOrderTimeline,
   createCampusAddress,
@@ -276,7 +277,13 @@ export default {
         this.confirmDelete()
         return
       }
-      uni.showToast({ title: this.order.counterpartName ? `请联系${this.order.counterpartName}` : '请通过聊天页联系对方', icon: 'none' })
+      this.openOrderChat()
+    },
+    openOrderChat() {
+      openConversationAndNavigate({
+        orderId: this.order && this.order.id,
+        missingTargetMessage: '订单信息加载中'
+      })
     },
     confirmDelete() {
       uni.showModal({

@@ -1,5 +1,9 @@
 import { request } from '../utils/request'
 
+function hasTargetValue(value) {
+  return !(value === '' || value === null || typeof value === 'undefined')
+}
+
 export function getConversationList(params) {
   return request({
     url: '/chat/conversations',
@@ -15,18 +19,22 @@ export function getChatUnreadCount() {
   })
 }
 
-export function openConversationByGoods(goodsId) {
-  return request({
-    url: `/chat/conversations/from-goods/${goodsId}`,
-    method: 'POST'
-  })
-}
+export function openConversation(target = {}) {
+  if (hasTargetValue(target.goodsId)) {
+    return request({
+      url: `/chat/conversations/from-goods/${target.goodsId}`,
+      method: 'POST'
+    })
+  }
 
-export function openConversationByOrder(orderId) {
-  return request({
-    url: `/chat/conversations/from-order/${orderId}`,
-    method: 'POST'
-  })
+  if (hasTargetValue(target.orderId)) {
+    return request({
+      url: `/chat/conversations/from-order/${target.orderId}`,
+      method: 'POST'
+    })
+  }
+
+  return Promise.reject(new Error('缺少会话目标'))
 }
 
 export function getConversationDetail(id) {

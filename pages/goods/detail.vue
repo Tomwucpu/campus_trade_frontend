@@ -115,10 +115,10 @@
 </template>
 
 <script>
-import { openConversationByGoods } from '../../api/chat'
 import { addFavorite, removeFavorite } from '../../api/favorite'
 import { getGoodsDetail } from '../../api/goods'
 import { createOrder } from '../../api/order'
+import { openConversationAndNavigate } from '../../utils/chat-entry.mjs'
 import { BASE_URL } from '../../utils/request'
 import UniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons.vue'
 import EmptyState from '../../components/EmptyState.vue'
@@ -323,20 +323,10 @@ export default {
         return
       }
 
-      openConversationByGoods(this.detail.id)
-        .then((res) => {
-          if (res && res.code === 0 && res.data && res.data.id) {
-            uni.navigateTo({ url: `/pages/chat/detail?id=${res.data.id}` })
-            return
-          }
-          uni.showToast({ title: (res && res.message) || '暂时无法进入聊天', icon: 'none' })
-        })
-        .catch(() => {
-          uni.showToast({ title: '暂时无法进入聊天', icon: 'none' })
-        })
-    },
-    openSellerChat() {
-      this.openSellerChatSafe()
+      openConversationAndNavigate({
+        goodsId: this.detail.id,
+        missingTargetMessage: '商品信息加载中'
+      })
     },
     createTradeOrder() {
       if (this.actionDisabled) {

@@ -98,12 +98,12 @@
 </template>
 
 <script>
-import { openConversationByOrder } from '../../api/chat'
 import { completeOrder, deleteOrder, getOrderList, payOrder, shipOrder } from '../../api/order'
 import AppTabBar from '../../components/AppTabBar.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { useAuthStore } from '../../store/auth'
 import { useOrderStore } from '../../store/order'
+import { openConversationAndNavigate } from '../../utils/chat-entry.mjs'
 import { normalizeOrderItem } from '../../utils/market'
 import { syncThemePage } from '../../utils/theme'
 
@@ -313,22 +313,10 @@ export default {
       this.openOrder(item)
     },
     openOrderConversation(item) {
-      if (!item || !item.id) {
-        uni.showToast({ title: '缺少订单信息', icon: 'none' })
-        return
-      }
-
-      openConversationByOrder(item.id)
-        .then((res) => {
-          if (res && res.code === 0 && res.data && res.data.id) {
-            uni.navigateTo({ url: `/pages/chat/detail?id=${res.data.id}` })
-            return
-          }
-          uni.showToast({ title: (res && res.message) || '暂时无法进入聊天', icon: 'none' })
-        })
-        .catch(() => {
-          uni.showToast({ title: '暂时无法进入聊天', icon: 'none' })
-        })
+      openConversationAndNavigate({
+        orderId: item && item.id,
+        missingTargetMessage: '缺少订单信息'
+      })
     },
     confirmDelete(item) {
       uni.showModal({
